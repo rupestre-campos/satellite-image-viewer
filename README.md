@@ -1,2 +1,2 @@
-# satellite_image_viewer
-Simple streamlit app to show recent satellite images
+# satellite image viewer
+Simple app to show recent satellite images
