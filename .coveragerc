@@ -1,0 +1,15 @@
+[run]
+
+relative_files = True
+source = src
+branch = True
+omit =
+    **/__main__.py
+    **/__init__.py
+    **/main.py
+
+[report]
+
+exclude_lines =
+    if __name__==.__main__.:
+    if __name__ == .__main__.:

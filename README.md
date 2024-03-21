@@ -2,7 +2,8 @@
 Simple app to show recent satellite images
 
 ## Instalation
-How to run in debian based distros and Python 3.10
+How to run in debian based linux distros
+Recomended Python version: Python 3.10 or above
 
 ```
 python3 -m venv .venv
@@ -19,5 +20,9 @@ python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -r requirements-dev.txt
 
+# install playright browser files
+playwright install
+
+# run tests
 pytest tests/
 ```
