@@ -20,6 +20,11 @@ class ReadSTAC:
         band_min, band_max = (band.min(), band.max())
         return ((band-band_min)/((band_max - band_min)))
 
+    @staticmethod
+    def __gammacorr(band):
+        gamma=2
+        return np.power(band, 1/gamma)
+
     def __get_image_bounds(self, image):
         left, bottom, right, top = [i for i in image.bounds]
         bounds_4326 = warp.transform_bounds(
@@ -46,6 +51,7 @@ class ReadSTAC:
         image = image.data_as_image()
         image = self.__brighten(image)
         image = self.__normalize(image)
+        image = self.__gammacorr(image)
         return {
             "image": image.data,
             "bounds": image_bounds,
