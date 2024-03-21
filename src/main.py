@@ -38,12 +38,21 @@ def startup_session_variables():
 def main():
     web_map = WebMap()
     web_map.add_draw_support()
-    web_map.add_base_map(app_config_data.google_basemap, "google", "google", show=True)
-    web_map.add_base_map(app_config_data.esri_basemap, "esri", "esri")
+    web_map.add_base_map(app_config_data.google_basemap, "google satellite", "google")
+    web_map.add_base_map(app_config_data.esri_basemap, "esri satellite", "esri")
 
     st.title("Satellite Image Viewer")
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.write("Draw polygon on map to get recent Sentinel 2 image")
+    with col2:
+        st.write(" ")
+    with col3:
+        st.write("[Code on GitHub](https://github.com/rupestre-campos/satellite-image-viewer)")
+
     startup_session_variables()
     if st.session_state["image_data"] != {}:
+        st.write(f'Image ID: {st.session_state["image_data"]["name"]}')
         web_map.add_image(
             st.session_state["image_data"]["image"],
             st.session_state["image_data"]["bounds"],
