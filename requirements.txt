@@ -1,8 +1,5 @@
-requests
-folium
-streamlit
-streamlit_folium
-pystac_client
-rio-tiler
-rasterio
-shapely
+folium==0.16.0
+streamlit==1.32.2
+streamlit_folium==0.18.0
+pystac_client==0.7.6
+rio-tiler==6.4.1

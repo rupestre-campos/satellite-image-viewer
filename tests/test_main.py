@@ -1,25 +1,95 @@
+from contextlib import contextmanager
+from time import sleep
+
 import pytest
-import json
-from main import main
+from playwright.sync_api import Page, expect
+
+LOCAL_TEST = False
+
+PORT = "8503" if LOCAL_TEST else "8699"
+
+@pytest.fixture(scope="module", autouse=True)
+def before_module():
+    # Run the streamlit app before each module
+    with run_streamlit():
+        yield
 
 
-@pytest.fixture
-def feature_geojson():
-    with open("tests/data/polygon_feature.geojson") as test_data:
-        return json.load(test_data)
+@pytest.fixture(scope="function", autouse=True)
+def before_test(page: Page):
+    page.goto(f"localhost:{PORT}")
+    page.set_viewport_size({"width": 2000, "height": 2000})
 
-def test_main_page():
-    return_value = main()
-    assert return_value == True
 
-def test_main_draw_on_map(mocker, feature_geojson):
-    mocker.patch(
-        "view.web_map.WebMap.render_web_map",
-        return_value={"geometry": feature_geojson}
+# Take screenshot of each page if there are failures for this session
+@pytest.fixture(scope="function", autouse=True)
+def after_test(page: Page, request):
+    yield
+    if request.node.rep_call.failed:
+        page.screenshot(path=f"screenshot-{request.node.name}.png", full_page=True)
+
+
+@contextmanager
+def run_streamlit():
+    """Run the streamlit app at examples/streamlit_app.py on port 8599"""
+    import subprocess
+
+    if LOCAL_TEST:
+        try:
+            yield 1
+        finally:
+            pass
+    else:
+        p = subprocess.Popen(
+            [
+                "streamlit",
+                "run",
+                "src/main.py",
+                "--server.port",
+                PORT,
+                "--server.headless",
+                "true",
+            ]
+        )
+
+        sleep(5)
+
+        try:
+            yield 1
+        finally:
+            p.kill()
+
+
+def test_page(page: Page):
+    # Check page title
+    expect(page).to_have_title("Satellite Image Viewer")
+
+def test_responsiveness(page: Page):
+    page.set_viewport_size({"width": 500, "height": 3000})
+
+    initial_bbox = (
+        page.frame_locator("div:nth-child(2) > iframe")
+        .locator("#map_div")
+        .bounding_box()
     )
-    mocker.patch.dict(
-        "streamlit.session_state",
-        {"image_data": {}}
+
+    page.set_viewport_size({"width": 1000, "height": 3000})
+
+    sleep(1)
+
+    new_bbox = (
+        page.frame_locator("div:nth-child(2) > iframe")
+        .locator("#map_div")
+        .bounding_box()
     )
-    return_value = main()
-    assert return_value == True
+
+    print(initial_bbox)
+    print(new_bbox)
+
+    assert initial_bbox is not None
+
+    assert new_bbox is not None
+
+    assert new_bbox["width"] > initial_bbox["width"] + 300
+
+    page.set_viewport_size({"width": 2000, "height": 2000})

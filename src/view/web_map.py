@@ -10,6 +10,20 @@ class WebMap:
             zoom_control=zoom_control
         )
 
+    def add_layer_control(self):
+        folium.LayerControl().add_to(self.web_map)
+
+    def add_base_map(self, tile_url, name, attribution, max_zoom=30, max_native_zoom=18, show=False):
+        folium.raster_layers.TileLayer(
+            name=name,
+            tiles=tile_url,
+            attr=attribution,
+            max_zoom=max_zoom,
+            max_native_zoom=max_native_zoom,
+            show=show,
+            overlay=False
+        ).add_to(self.web_map)
+
     def add_draw_support(self, export=False):
         Draw(
             export=export,
@@ -36,11 +50,11 @@ class WebMap:
             return {"geometry":None}
         return {"geometry": user_data["last_active_drawing"]["geometry"]}
 
-    def add_image(self, image, image_bounds):
+    def add_image(self, image, image_bounds, name='satelite image'):
 
         image_overlay = folium.raster_layers.ImageOverlay(
-            image=image.data,
-            name='satelite image',
+            image=image,
+            name=name,
             opacity=1,
             bounds=image_bounds,
         )
@@ -51,6 +65,7 @@ class WebMap:
     def add_polygon(self, geojson_polygon):
         polygon = folium.GeoJson(
             geojson_polygon,
+            name="Polygon",
             style_function=lambda feature: {
                 "fillColor": None,
                 "fill":None,
