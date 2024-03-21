@@ -1,0 +1,8 @@
+requests
+folium
+streamlit
+streamlit_folium
+pystac_client
+rio-tiler
+rasterio
+shapely
