@@ -1,5 +1,6 @@
 from rio_tiler.io import STACReader
 from rasterio import warp
+import numpy as np
 
 class ReadSTAC:
     def __init__(self, stac_item, geojson_geometry):
@@ -7,6 +8,17 @@ class ReadSTAC:
         self.assets = ("red", "green", "blue",)
         self.stac_item = stac_item
         self.geojson_geometry = geojson_geometry
+
+    @staticmethod
+    def __brighten(band):
+        alpha=0.13
+        beta=0
+        return np.clip(alpha*band+beta, 0,255)
+
+    @staticmethod
+    def __normalize(band):
+        band_min, band_max = (band.min(), band.max())
+        return ((band-band_min)/((band_max - band_min)))
 
     def __get_image_bounds(self, image):
         left, bottom, right, top = [i for i in image.bounds]
@@ -29,7 +41,11 @@ class ReadSTAC:
             )
 
         image_bounds = self.__get_image_bounds(image)
+        image.rescale(in_range=((0, 4000),))
+
         image = image.data_as_image()
+        image = self.__brighten(image)
+        image = self.__normalize(image)
         return {
             "image": image.data,
             "bounds": image_bounds,
