@@ -16,5 +16,7 @@ class ImageRenderer:
         }
 
     def render_image_from_stac(self):
-        stac_reader = ReadSTAC(self.stac_item, self.geojson_geometry)
+        stac_reader = ReadSTAC(
+            stac_item=self.stac_item,
+            geojson_geometry=self.geojson_geometry)
         return stac_reader.render_image_from_stac()
