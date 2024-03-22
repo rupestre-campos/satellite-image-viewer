@@ -33,3 +33,11 @@ def test_render_image(stac_item, feature_geojson, sample_image):
     image_data = stac_reader.render_image_from_stac()
     assert isinstance(image_data["image"], type(sample_image))
     assert isinstance(image_data["bounds"], list)
+
+def test_render_mosaic(stac_item, feature_geojson, sample_image):
+    stac_reader = ReadSTAC(
+        stac_list=[stac_item for i in range(10)],
+        geojson_geometry=feature_geojson)
+    image_data = stac_reader.render_mosaic_from_stac()
+    assert isinstance(image_data["image"], type(sample_image))
+    assert isinstance(image_data["bounds"], list)

@@ -72,14 +72,10 @@ class ReadSTAC:
             "name": self.stac_item["id"]
         }
 
-    def render_mosaic_from_stac_list(self):
+    def render_mosaic_from_stac(self):
         args = (self.geojson_geometry, )
         kwargs = {'assets': self.assets}
-
-        image, assets_used = mosaic_reader(self.stac_list, self.__tiler, *args, **kwargs)
-
-        image_data = self.__tiler(self.stac_item, self.geojson_geometry, self.assets)
-
+        image_data, assets_used = mosaic_reader(self.stac_list, self.__tiler, *args, **kwargs)
         image_data.rescale(in_range=((self.min_value, self.max_value),))
         image = image_data.data_as_image()
         image = self.__apply_contrast(image)

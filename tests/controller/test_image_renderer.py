@@ -34,3 +34,14 @@ def test_render_image(mocker, stac_item, feature_geojson, sample_image):
     image_data = image_renderer.render_image_from_stac()
     assert isinstance(image_data["image"], type(sample_image))
     assert isinstance(image_data["bounds"], list)
+
+def test_render_mosaic(mocker, stac_list, feature_geojson, sample_image):
+    mocker.patch(
+        "model.read_stac.ReadSTAC.render_mosaic_from_stac",
+        return_value={"image":sample_image, "bounds":[[0,0],[100,100]]}
+    )
+    image_renderer = ImageRenderer(stac_list, feature_geojson)
+
+    image_data = image_renderer.render_image_from_stac()
+    assert isinstance(image_data["image"], type(sample_image))
+    assert isinstance(image_data["bounds"], list)

@@ -23,7 +23,7 @@ def catalog_search(stac_url, geometry):
 
 @st.cache_data
 def image_render(stac_item, geometry):
-    renderer = ImageRenderer(stac_item, geometry)
+    renderer = ImageRenderer(stac_item=stac_item, geojson_geometry=geometry)
     image_data = renderer.render_image_from_stac()
     return image_data
 
@@ -68,7 +68,7 @@ def main():
             st.session_state["geometry"]
         )
 
-        image_data = image_render(stac_items[0], st.session_state["geometry"])
+        image_data = image_render(stac_item=stac_items[0], geometry=st.session_state["geometry"])
 
         st.session_state["image_data"] = image_data
         st.session_state["update_map"] = False
