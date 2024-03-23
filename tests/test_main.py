@@ -25,8 +25,8 @@ def before_test(page: Page):
 @pytest.fixture(scope="function", autouse=True)
 def after_test(page: Page, request):
     yield
-    if request.node.rep_call.failed:
-        page.screenshot(path=f"screenshot-{request.node.name}.png", full_page=True)
+    #if request.node.rep_call.failed:
+    #page.screenshot(path=f"screenshot-{request.node.name}.png", full_page=True)
 
 
 @contextmanager
@@ -75,7 +75,7 @@ def test_responsiveness(page: Page):
 
     page.set_viewport_size({"width": 1000, "height": 3000})
 
-    sleep(1)
+    sleep(3)
 
     new_bbox = (
         page.frame_locator("div:nth-child(2) > iframe")
@@ -83,13 +83,8 @@ def test_responsiveness(page: Page):
         .bounding_box()
     )
 
-    print(initial_bbox)
-    print(new_bbox)
-
     assert initial_bbox is not None
 
     assert new_bbox is not None
 
     assert new_bbox["width"] > initial_bbox["width"] + 300
-
-    page.set_viewport_size({"width": 2000, "height": 2000})

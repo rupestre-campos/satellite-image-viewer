@@ -12,6 +12,12 @@ def stac_item():
         return json.load(test_data)
 
 @pytest.fixture
+def stac_list():
+    with open("tests/data/stac_item.json") as test_data:
+        data = json.load(test_data)
+    return [data for i in range(10)]
+
+@pytest.fixture
 def feature_geojson():
     with open("tests/data/polygon_feature.geojson") as test_data:
         return json.load(test_data)
@@ -29,8 +35,19 @@ def test_render_image(mocker, stac_item, feature_geojson, sample_image):
         "model.read_stac.ReadSTAC.render_image_from_stac",
         return_value={"image":sample_image, "bounds":[[0,0],[100,100]]}
     )
-    image_renderer = ImageRenderer(stac_item, feature_geojson)
+    image_renderer = ImageRenderer(stac_item=stac_item, geojson_geometry=feature_geojson)
 
     image_data = image_renderer.render_image_from_stac()
+    assert isinstance(image_data["image"], type(sample_image))
+    assert isinstance(image_data["bounds"], list)
+
+def test_render_mosaic(mocker, stac_list, feature_geojson, sample_image):
+    mocker.patch(
+        "model.read_stac.ReadSTAC.render_mosaic_from_stac",
+        return_value={"image":sample_image, "bounds":[[0,0],[100,100]]}
+    )
+    image_renderer = ImageRenderer(stac_list=stac_list, geojson_geometry=feature_geojson)
+
+    image_data = image_renderer.render_mosaic_from_stac()
     assert isinstance(image_data["image"], type(sample_image))
     assert isinstance(image_data["bounds"], list)

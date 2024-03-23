@@ -2,7 +2,6 @@ from pystac_client import Client
 
 class SearchSTAC:
     def __init__(self, stac_url, feature_geojson={}):
-        self.max_items = 10
         self.collection = "sentinel-2-l2a"
         self.stac_url = stac_url
         self.feature_geojson = feature_geojson
@@ -17,11 +16,11 @@ class SearchSTAC:
     def __get_collection_info(self):
         return self.client.get_collection(self.collection)
 
-    def __get_items(self):
+    def __get_items(self, **kwargs):
         return self.client.search(
             collections=[self.collection],
             intersects=self.feature_geojson,
-            max_items=self.max_items
+            **kwargs
         ).item_collection()
 
     def get_collections(self):
@@ -30,5 +29,5 @@ class SearchSTAC:
     def get_collection_info(self):
         return self.__get_collection_info().to_dict()
 
-    def get_items(self):
-        return [item.to_dict() for item in self.__get_items()]
+    def get_items(self, **kwags):
+        return [item.to_dict() for item in self.__get_items(**kwags)]

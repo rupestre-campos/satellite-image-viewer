@@ -1,29 +1,42 @@
-from rio_tiler.io import STACReader
-from rasterio import warp
 import numpy as np
+from rasterio import warp
+from rio_tiler.io import STACReader
+from rio_tiler.mosaic import mosaic_reader
 
 class ReadSTAC:
-    def __init__(self, stac_item, geojson_geometry):
+    def __init__(
+            self,
+            stac_item={},
+            stac_list=[],
+            geojson_geometry={}
+        ):
         self.default_crs = "EPSG:4326"
         self.assets = ("red", "green", "blue",)
         self.stac_item = stac_item
+        self.stac_list = stac_list
         self.geojson_geometry = geojson_geometry
+        self.min_value = 0
+        self.max_value = 4000
+        self.alpha = 0.13
+        self.beta = 0
+        self.gamma = 2
 
     @staticmethod
-    def __brighten(band):
-        alpha=0.13
-        beta=0
-        return np.clip(alpha*band+beta, 0,255)
+    def __normalize(image):
+        image_min, image_max = (image.min(), image.max())
+        return ((image-image_min)/((image_max - image_min)))
 
     @staticmethod
-    def __normalize(band):
-        band_min, band_max = (band.min(), band.max())
-        return ((band-band_min)/((band_max - band_min)))
+    def __tiler(item, *args, **kwargs):
+        with STACReader(None, item=item) as stac:
+            return stac.feature(*args,**kwargs)
 
-    @staticmethod
-    def __gammacorr(band):
-        gamma=2
-        return np.power(band, 1/gamma)
+    def __brighten(self, image):
+        return np.clip(
+            self.alpha*image+self.beta, 0, 255)
+
+    def __gammacorr(self, image):
+        return np.power(image, 1/self.gamma)
 
     def __get_image_bounds(self, image):
         left, bottom, right, top = [i for i in image.bounds]
@@ -38,22 +51,39 @@ class ReadSTAC:
 
         return [[bounds_4326[1], bounds_4326[0]], [bounds_4326[3], bounds_4326[2]]]
 
-    def render_image_from_stac(self):
-        with STACReader(None, item=self.stac_item) as stac:
-            image = stac.feature(
-                self.geojson_geometry,
-                assets=self.assets,
-            )
-
-        image_bounds = self.__get_image_bounds(image)
-        image.rescale(in_range=((0, 4000),))
-
-        image = image.data_as_image()
+    def __apply_contrast(self, image):
         image = self.__brighten(image)
         image = self.__normalize(image)
         image = self.__gammacorr(image)
+        return image
+
+    def render_image_from_stac(self):
+        args = (self.geojson_geometry,)
+        kwargs = {'assets': self.assets}
+        image_data = self.__tiler(self.stac_item, *args, **kwargs)
+        image_data.rescale(in_range=((self.min_value, self.max_value),))
+        image = image_data.data_as_image()
+        image = self.__apply_contrast(image)
+        image_bounds = self.__get_image_bounds(image_data)
+
         return {
             "image": image.data,
             "bounds": image_bounds,
             "name": self.stac_item["id"]
+        }
+
+    def render_mosaic_from_stac(self):
+        args = (self.geojson_geometry, )
+        kwargs = {'assets': self.assets}
+        image_data, assets_used = mosaic_reader(self.stac_list, self.__tiler, *args, **kwargs)
+        image_data.rescale(in_range=((self.min_value, self.max_value),))
+        image = image_data.data_as_image()
+        image = self.__apply_contrast(image)
+        image_bounds = self.__get_image_bounds(image_data)
+
+        return {
+            "image": image.data,
+            "bounds": image_bounds,
+            "assets_used": assets_used,
+            "name": ", ".join(sorted([item["id"] for item in assets_used]))
         }
