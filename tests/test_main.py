@@ -75,7 +75,7 @@ def test_responsiveness(page: Page):
 
     page.set_viewport_size({"width": 1000, "height": 3000})
 
-    sleep(1)
+    sleep(3)
 
     new_bbox = (
         page.frame_locator("div:nth-child(2) > iframe")

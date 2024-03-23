@@ -84,5 +84,6 @@ class ReadSTAC:
         return {
             "image": image.data,
             "bounds": image_bounds,
-            "assets_used": assets_used
+            "assets_used": assets_used,
+            "name": ", ".join(sorted([item["id"] for item in assets_used]))
         }

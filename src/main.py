@@ -4,6 +4,7 @@ from app_config import AppConfig
 from view.web_map import WebMap
 from controller.image_renderer import ImageRenderer
 from controller.catalog_searcher import CatalogSearcher
+from datetime import datetime, timedelta
 
 app_config_data = AppConfig()
 
@@ -14,10 +15,12 @@ st.set_page_config(
 )
 
 @st.cache_data
-def catalog_search(stac_url, geometry):
+def catalog_search(stac_url, geometry, date_string, max_cloud_cover):
     catalog_worker = CatalogSearcher(
         stac_url,
-        feature_geojson=geometry
+        feature_geojson=geometry,
+        date_string=date_string,
+        max_cloud_cover=max_cloud_cover
     )
     return catalog_worker.search_images()
 
@@ -26,6 +29,17 @@ def image_render(stac_item, geometry):
     renderer = ImageRenderer(stac_item=stac_item, geojson_geometry=geometry)
     image_data = renderer.render_image_from_stac()
     return image_data
+
+@st.cache_data
+def mosaic_render(stac_list, geometry):
+    renderer = ImageRenderer(stac_list=stac_list, geojson_geometry=geometry)
+    image_data = renderer.render_mosaic_from_stac()
+    return image_data
+
+def render_image(stac_items, geometry, render_mosaic):
+    if render_mosaic:
+        return mosaic_render(stac_items, geometry)
+    return image_render(stac_items[0], geometry)
 
 def startup_session_variables():
     if "image_data" not in st.session_state:
@@ -42,21 +56,35 @@ def main():
     web_map.add_base_map(app_config_data.esri_basemap, "esri satellite", "esri")
 
     st.title("Satellite Image Viewer")
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.write("Draw polygon on map to get recent Sentinel 2 image")
-    with col2:
-        st.write(" ")
-    with col3:
-        st.write("[Code on GitHub](https://github.com/rupestre-campos/satellite-image-viewer)")
+    st.write("Draw polygon on map to get recent Sentinel 2 image")
 
     startup_session_variables()
+
+    # Create a datetime slider with custom format and options
+    col1, col2 = st.columns(2)
+    render_mosaic = st.checkbox("Render mosaic", value=False)
+    with col1:
+        end_date = datetime.now()
+        start_date = datetime(2015, 6, 22)
+
+        selected_dates = st.slider(
+            "Select a date range",
+            min_value=start_date,
+            max_value=end_date,
+            value=(end_date - timedelta(days=365), end_date),
+            step=timedelta(days=1),
+            format="YYYY-MM-DD"
+        )
+        date_string = f"{selected_dates[0].strftime('%Y-%m-%d')}/{selected_dates[1].strftime('%Y-%m-%d')}"
+    with col2:
+        max_cloud_percent = st.slider("Maximum cloud cover", min_value=0, max_value=100, value=60, step=5)
+
     if st.session_state["image_data"] != {}:
         st.write(f'Image ID: {st.session_state["image_data"]["name"]}')
         web_map.add_image(
             st.session_state["image_data"]["image"],
             st.session_state["image_data"]["bounds"],
-            st.session_state["image_data"]["name"],
+            "sentinel 2 image",
             )
         web_map.add_polygon(st.session_state["geometry"])
 
@@ -65,10 +93,11 @@ def main():
 
         stac_items = catalog_search(
             app_config_data.stac_url,
-            st.session_state["geometry"]
+            st.session_state["geometry"],
+            date_string,
+            max_cloud_percent
         )
-
-        image_data = image_render(stac_item=stac_items[0], geometry=st.session_state["geometry"])
+        image_data = render_image(stac_items, st.session_state["geometry"], render_mosaic)
 
         st.session_state["image_data"] = image_data
         st.session_state["update_map"] = False
@@ -81,6 +110,7 @@ def main():
         st.session_state["update_map"] = True
         st.rerun()
 
+    st.write("[Code on GitHub](https://github.com/rupestre-campos/satellite-image-viewer)")
     return True
 
 if __name__ == "__main__":
