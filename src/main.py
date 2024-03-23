@@ -8,6 +8,10 @@ from datetime import datetime, timedelta
 from shapely.geometry import shape
 from shapely.ops import transform
 import pyproj
+import io
+from PIL import Image
+import numpy as np
+import json
 
 app_config_data = AppConfig()
 
@@ -65,6 +69,31 @@ def compute_area(geojson_dict):
 
     return area
 
+def create_download_image_button(image_data):
+    with io.BytesIO() as buffer:
+        # Write array to buffer
+        image_data = Image.fromarray((image_data*255).astype(np.uint8))
+        image_data.save(buffer, format='JPEG')
+        btn = st.download_button(
+            label="Download image",
+            data = buffer, # Download buffer
+            file_name = 'sentinel2.jpeg',
+            mime="image/jpeg"
+        )
+
+def create_download_geojson_button(geometry, properties):
+    feature = {
+        "type": "Feature",
+        "properties": properties,
+        "geometry": geometry
+    }
+
+    btn = st.download_button(
+        label="Download polygon",
+        data = json.dumps(feature), # Download buffer
+        file_name = 'sentinel2_polygon.geojson',
+        mime="application/json"
+    )
 
 def startup_session_variables():
     if "image_data" not in st.session_state:
@@ -77,6 +106,14 @@ def startup_session_variables():
         st.session_state["area_too_big"] = False
     if "area_too_big_value" not in st.session_state:
         st.session_state["area_too_big_value"] = 0
+    if "end_date" not in st.session_state:
+        st.session_state["end_date"] = datetime.now()
+    if "start_date" not in st.session_state:
+        st.session_state["start_date"] = datetime(2015, 6, 22)
+    if "date_range_value" not in st.session_state:
+        st.session_state["data_range_value"] = (
+            st.session_state["end_date"] - timedelta(days=365),
+            st.session_state["end_date"])
 
 def main():
     web_map = WebMap()
@@ -84,26 +121,26 @@ def main():
     web_map.add_base_map(app_config_data.google_basemap, "google satellite", "google")
     web_map.add_base_map(app_config_data.esri_basemap, "esri satellite", "esri")
 
-    st.title("Satellite Image Viewer")
+    st.title("Stealth Satellite Image Viewer")
     st.write("Draw polygon on map to get recent Sentinel 2 image")
+    st.write("Be cool no logs enabled, stealth search your image ;)")
 
     startup_session_variables()
 
     # Create a datetime slider with custom format and options
     col1, col2 = st.columns(2)
-    render_mosaic = st.checkbox("Render mosaic", value=False)
+    render_mosaic = st.checkbox("Render mosaic", value=True)
     with col1:
-        end_date = datetime.now()
-        start_date = datetime(2015, 6, 22)
 
         selected_dates = st.slider(
             "Select a date range",
-            min_value=start_date,
-            max_value=end_date,
-            value=(end_date - timedelta(days=365), end_date),
+            min_value=st.session_state["start_date"],
+            max_value=st.session_state["end_date"],
+            value=st.session_state["data_range_value"],
             step=timedelta(days=1),
             format="YYYY-MM-DD"
         )
+        st.session_state["data_range_values"] = selected_dates
         date_string = f"{selected_dates[0].strftime('%Y-%m-%d')}/{selected_dates[1].strftime('%Y-%m-%d')}"
     with col2:
         max_cloud_percent = st.slider("Maximum cloud cover", min_value=0, max_value=100, value=60, step=5)
@@ -113,6 +150,16 @@ def main():
 
     if st.session_state["image_data"] != {}:
         st.write(f'Image ID: {st.session_state["image_data"]["name"]}')
+        # Create an in-memory buffer
+        col1, col2 = st.columns(2)
+        with col1:
+            create_download_image_button(st.session_state["image_data"]["image"])
+        with col2:
+            properties = {
+                "image_bounds": st.session_state["image_data"]["bounds"],
+                "image_id": st.session_state["image_data"]["name"]
+            }
+            create_download_geojson_button(st.session_state["geometry"], properties)
         web_map.add_image(
             st.session_state["image_data"]["image"],
             st.session_state["image_data"]["bounds"],
