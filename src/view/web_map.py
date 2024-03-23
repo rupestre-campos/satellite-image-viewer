@@ -3,11 +3,13 @@ from folium.plugins import Draw
 from streamlit_folium import st_folium
 
 class WebMap:
-    def __init__(self, center_y=44.05, center_x=-121.42, zoom_start=12, zoom_control=False):
+    def __init__(self, center_y=44.05, center_x=-121.42, zoom_start=12, zoom_control=False, min_zoom=3):
         self.web_map = folium.Map(
             location=[center_y, center_x],
             zoom_start=zoom_start,
-            zoom_control=zoom_control
+            zoom_control=zoom_control,
+            max_bounds=True,
+            min_zoom=min_zoom
         )
 
     def add_layer_control(self):
