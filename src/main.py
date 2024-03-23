@@ -48,7 +48,7 @@ def render_image(stac_items, geometry, render_mosaic):
         return mosaic_render(stac_items, geometry)
     return image_render(stac_items[0], geometry)
 
-def compute_area(geojson_dict):
+def compute_area_hectares(geojson_dict):
     if not geojson_dict:
         return None
     # Define the geographic and projected coordinate reference systems
@@ -67,7 +67,7 @@ def compute_area(geojson_dict):
     # Compute the area of the projected geometry
     area = projected_geometry.area
 
-    return area
+    return area/10_000
 
 def create_download_image_button(image_data):
     with io.BytesIO() as buffer:
@@ -185,8 +185,8 @@ def main():
     user_draw = web_map.render_web_map()
 
     if user_draw["geometry"] != None:
-        area_user_draw = compute_area(user_draw)
-        if area_user_draw/10_000 >= app_config_data.max_area_hectares:
+        area_user_draw = compute_area_hectares(user_draw)
+        if area_user_draw >= app_config_data.max_area_hectares:
             st.session_state["area_too_big"] = True
             st.session_state["area_too_big_value"] = area_user_draw
             st.rerun()
