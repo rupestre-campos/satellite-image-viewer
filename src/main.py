@@ -121,7 +121,7 @@ def main():
     web_map.add_base_map(app_config_data.google_basemap, "google satellite", "google")
     web_map.add_base_map(app_config_data.esri_basemap, "esri satellite", "esri")
 
-    st.title("Stealth Satellite Image Viewer")
+    st.title("Satellite Image Viewer")
     st.write("Draw polygon on map to get recent Sentinel 2 image")
     st.write("Be cool no logs enabled, stealth search your image ;)")
 
