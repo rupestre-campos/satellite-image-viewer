@@ -184,12 +184,16 @@ def main():
     web_map.add_layer_control()
     user_draw = web_map.render_web_map()
 
-    if user_draw["geometry"] != None:
+    if user_draw["geometry"] != None :
         area_user_draw = compute_area_hectares(user_draw)
         if area_user_draw >= app_config_data.max_area_hectares:
+            rerun = True
+            if st.session_state["area_too_big"] == True:
+                rerun = False
             st.session_state["area_too_big"] = True
             st.session_state["area_too_big_value"] = area_user_draw
-            st.rerun()
+            if rerun:
+                st.rerun()
             return
 
     if user_draw["geometry"] != None \
