@@ -133,7 +133,7 @@ def main():
             format="YYYY-MM-DD"
         )
         st.session_state["data_range_values"] = selected_dates
-        date_string = f"{selected_dates[0].strftime("%Y-%m-%d")}/{selected_dates[1].strftime('%Y-%m-%d')}"
+        date_string = f"{selected_dates[0].strftime('%Y-%m-%d')}/{selected_dates[1].strftime('%Y-%m-%d')}"
     with col2:
         max_cloud_percent = st.slider("Maximum cloud cover", min_value=0, max_value=100, value=60, step=5)
 
