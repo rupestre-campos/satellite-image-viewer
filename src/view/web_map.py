@@ -7,7 +7,8 @@ class WebMap:
         self.web_map = folium.Map(
             location=[center_y, center_x],
             zoom_start=zoom_start,
-            zoom_control=zoom_control
+            zoom_control=zoom_control,
+            max_bounds=True
         )
 
     def add_layer_control(self):

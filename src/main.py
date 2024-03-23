@@ -51,20 +51,12 @@ def render_image(stac_items, geometry, render_mosaic):
 def compute_area_hectares(geojson_dict):
     if not geojson_dict:
         return None
-    # Define the geographic and projected coordinate reference systems
-    geographic_crs = pyproj.CRS("EPSG:4326")  # WGS84
+
+    geographic_crs = pyproj.CRS("EPSG:4326")
     projected_crs = pyproj.CRS("EPSG:3857")
-
-    # Convert GeoJSON dictionary to a shapely geometry object
-    geometry = shape(geojson_dict['geometry'])
-
-    # Define the transformation function from geographic to projected CRS
+    geometry = shape(geojson_dict["geometry"])
     project = pyproj.Transformer.from_crs(geographic_crs, projected_crs, always_xy=True).transform
-
-    # Project the geometry to the projected CRS
     projected_geometry = transform(project, geometry)
-
-    # Compute the area of the projected geometry
     area = projected_geometry.area
 
     return area/10_000
@@ -76,7 +68,7 @@ def create_download_image_button(image_data):
         image_data.save(buffer, format='JPEG')
         btn = st.download_button(
             label="Download image",
-            data = buffer, # Download buffer
+            data = buffer,
             file_name = 'sentinel2.jpeg',
             mime="image/jpeg"
         )
@@ -90,7 +82,7 @@ def create_download_geojson_button(geometry, properties):
 
     btn = st.download_button(
         label="Download polygon",
-        data = json.dumps(feature), # Download buffer
+        data = json.dumps(feature),
         file_name = 'sentinel2_polygon.geojson',
         mime="application/json"
     )
@@ -141,12 +133,13 @@ def main():
             format="YYYY-MM-DD"
         )
         st.session_state["data_range_values"] = selected_dates
-        date_string = f"{selected_dates[0].strftime('%Y-%m-%d')}/{selected_dates[1].strftime('%Y-%m-%d')}"
+        date_string = f"{selected_dates[0].strftime("%Y-%m-%d")}/{selected_dates[1].strftime('%Y-%m-%d')}"
     with col2:
         max_cloud_percent = st.slider("Maximum cloud cover", min_value=0, max_value=100, value=60, step=5)
 
     if st.session_state["area_too_big"]:
-        st.write(f":red[Area too big ({st.session_state['area_too_big_value']:.2f}ha), draw smaller box, maximum={app_config_data.max_area_hectares:.2f}ha]")
+        st.write(f":red[Polygon drawn area too big: {st.session_state['area_too_big_value']:.2f}ha]")
+        st.write(f":red[draw smaller box with max:  {app_config_data.max_area_hectares:.2f}ha]")
 
     if st.session_state["image_data"] != {}:
         st.write(f'Image ID: {st.session_state["image_data"]["name"]}')
