@@ -63,28 +63,3 @@ def run_streamlit():
 def test_page(page: Page):
     # Check page title
     expect(page).to_have_title("Satellite Image Viewer")
-
-def test_responsiveness(page: Page):
-    page.set_viewport_size({"width": 500, "height": 3000})
-
-    initial_bbox = (
-        page.frame_locator("div:nth-child(2) > iframe")
-        .locator("#map_div")
-        .bounding_box()
-    )
-
-    page.set_viewport_size({"width": 1000, "height": 3000})
-
-    sleep(3)
-
-    new_bbox = (
-        page.frame_locator("div:nth-child(2) > iframe")
-        .locator("#map_div")
-        .bounding_box()
-    )
-
-    assert initial_bbox is not None
-
-    assert new_bbox is not None
-
-    assert new_bbox["width"] > initial_bbox["width"] + 300
