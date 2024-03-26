@@ -176,10 +176,9 @@ def main():
     st.title("Satellite Image Viewer")
 
     address_to_search = st.text_input("Search location", value=app_config_data.default_start_address)
-
+    location = search_place(address_to_search)
     if address_to_search != st.session_state["where_to_go"]:
         st.session_state["where_to_go"] = address_to_search
-        location = search_place(address_to_search)
         st.session_state["geometry"] = None
 
     col1, col2 = st.columns(2)
