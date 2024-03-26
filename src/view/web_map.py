@@ -9,7 +9,9 @@ class WebMap:
             zoom_start=zoom_start,
             zoom_control=zoom_control,
             max_bounds=True,
-            min_zoom=min_zoom
+            min_zoom=min_zoom,
+            control_scale=True,
+            tiles = None
         )
 
     def add_layer_control(self):
@@ -68,6 +70,7 @@ class WebMap:
         polygon = folium.GeoJson(
             geojson_polygon,
             name="Polygon",
+            show=False,
             style_function=lambda feature: {
                 "fillColor": None,
                 "fill":None,
