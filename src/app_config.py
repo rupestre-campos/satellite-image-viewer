@@ -10,3 +10,4 @@ class AppConfig:
         self.max_area_hectares = int(os.getenv("MAX_AREA_HECTARES", 100_000))
         self.buffer_width = int(os.getenv("BUFFER_WIDTH", 10000))
         self.email = os.getenv("EMAIL", "test-satellite-viewer@null.com")
+        self.default_start_address = os.getenv("DEFAULT_START_ADDRESS", "Ingaí MG")
