@@ -1,7 +1,7 @@
 from model.search_stac import SearchSTAC
 
 class CatalogSearcher:
-    def __init__(self, stac_url, feature_geojson, date_string, max_cloud_cover=100, max_items=10):
+    def __init__(self, stac_url, feature_geojson, date_string, max_cloud_cover=100, max_items=5):
         self.stac_url = stac_url
         self.feature_geojson = feature_geojson
         self.date_string = date_string
