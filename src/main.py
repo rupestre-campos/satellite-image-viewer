@@ -128,7 +128,7 @@ def create_download_image_button(image_data):
     with io.BytesIO() as buffer:
         # Write array to buffer
         image_data = Image.fromarray((image_data*255).astype(np.uint8))
-        image_data.save(buffer, format='JPEG')
+        image_data.save(buffer, format="JPEG")
         btn = st.download_button(
             label="Download image",
             data = buffer,
@@ -250,7 +250,7 @@ def main():
         st.rerun()
 
     if area_user_draw > app_config_data.max_area_hectares:
-        warning_area_user_input.write(f":red[Polygon drawn area too big: {st.session_state['area_too_big_value']:.2f}ha]")
+        warning_area_user_input.write(f":red[Polygon drawn area too big: {area_user_draw:.2f}ha]")
         warning_area.write(f":red[draw smaller box with max:  {app_config_data.max_area_hectares:.2f}ha]")
 
     st.write("this application does not collect data but use carefully ;)")

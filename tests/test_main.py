@@ -25,8 +25,8 @@ def before_test(page: Page):
 @pytest.fixture(scope="function", autouse=True)
 def after_test(page: Page, request):
     yield
-    #if request.node.rep_call.failed:
-    #page.screenshot(path=f"screenshot-{request.node.name}.png", full_page=True)
+    if request.node.rep_call.failed:
+        page.screenshot(path=f"tests/data/screenshot-{request.node.name}.png", full_page=True)
 
 
 @contextmanager
@@ -61,5 +61,20 @@ def run_streamlit():
 
 
 def test_page(page: Page):
-    # Check page title
+    # Check page loads
+    # huge timeout here as local testing is slow
+    page.set_default_timeout(300000)
     expect(page).to_have_title("Satellite Image Viewer")
+    page.wait_for_selector('text="Download image"')
+    expect(page.get_by_text("Image ID:")).to_be_visible()
+
+def test_clear_draw(page: Page):
+    # Check page loads
+    # huge timeout here as local testing is slow
+    page.set_default_timeout(300000)
+    expect(page).to_have_title("Satellite Image Viewer")
+    page.wait_for_selector('text="clear draw"')
+
+    page.locator('text="clear draw"').click()
+    page.wait_for_selector('text="Download image"')
+    expect(page.get_by_text("Image ID:")).to_be_visible()
