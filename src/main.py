@@ -31,7 +31,7 @@ geolocator = Nominatim(
     timeout=3,
     user_agent=f"satellite-image-viewer+{app_config_data.email}"
 )
-geocode = RateLimiter(geolocator.geocode, min_delay_seconds=1)
+geocode = RateLimiter(geolocator.geocode, min_delay_seconds=2)
 
 geographic_crs = pyproj.CRS("EPSG:4326")
 projected_crs = pyproj.CRS("EPSG:3857")
