@@ -3,7 +3,7 @@
 Simple app to show recent satellite images
 
 ## Demo app
-You can test the demo hosted on streamlit [here] (https://satellite-image-viewer.streamlit.app/).
+You can test the demo hosted on streamlit [here](https://satellite-image-viewer.streamlit.app/).
 
 ## Instalation
 How to run in debian based linux distros
