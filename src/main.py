@@ -14,6 +14,7 @@ import numpy as np
 import json
 from geopy.geocoders import Nominatim
 from geopy.extra.rate_limiter import RateLimiter
+from geopy.exc import GeocoderTimedOut, GeocoderUnavailable
 from shapely.geometry import Point
 from shapely.geometry.polygon import Polygon
 from streamlit_searchbox import st_searchbox
@@ -26,7 +27,10 @@ st.set_page_config(
     layout="wide",
 )
 
-geolocator = Nominatim(user_agent=f"satellite-image-viewer+{app_config_data.email}")
+geolocator = Nominatim(
+    timeout=3,
+    user_agent=f"satellite-image-viewer+{app_config_data.email}"
+)
 geocode = RateLimiter(geolocator.geocode, min_delay_seconds=1)
 
 geographic_crs = pyproj.CRS("EPSG:4326")
@@ -34,12 +38,26 @@ projected_crs = pyproj.CRS("EPSG:3857")
 project_4326_to_3857 = pyproj.Transformer.from_crs(geographic_crs, projected_crs, always_xy=True).transform
 project_3857_to_4326 = pyproj.Transformer.from_crs(projected_crs, geographic_crs, always_xy=True).transform
 
+
+def do_geocode(address, attempt=1, max_attempts=5):
+    try:
+        return geolocator.geocode(address)
+    except GeocoderUnavailable:
+        if attempt <= max_attempts:
+            return do_geocode(address, attempt=attempt+1)
+        raise Exception("Too many searches")
+    except GeocoderTimedOut:
+        if attempt <= max_attempts:
+            return do_geocode(address, attempt=attempt+1)
+        raise Exception("Too many searches")
+
 @st.cache_data
 def search_place(address):
     if not address:
         return None
-    location = geolocator.geocode(address)
-    return [(location, (location.latitude, location.longitude))]
+    location = do_geocode(address)
+
+    return (location.latitude, location.longitude)
 
 @st.cache_data
 def catalog_search(stac_url, geometry, date_string, max_cloud_cover):
@@ -157,14 +175,11 @@ def main():
 
     st.title("Satellite Image Viewer")
 
-    location = st_searchbox(
-        search_place,
-        placeholder="Search place",
-        default=(44.05, -121.42)
-    )
+    address_to_search = st.text_input("Search location", value="Bend OR")
 
-    if location != st.session_state["where_to_go"]:
-        st.session_state["where_to_go"] = location
+    if address_to_search != st.session_state["where_to_go"]:
+        st.session_state["where_to_go"] = address_to_search
+        location = search_place(address_to_search)
         st.session_state["geometry"] = None
 
     col1, col2 = st.columns(2)
