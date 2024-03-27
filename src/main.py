@@ -1,3 +1,8 @@
+import io
+import json
+import pyproj
+import numpy as np
+from PIL import Image
 import streamlit as st
 
 from app_config import AppConfig
@@ -7,17 +12,12 @@ from controller.catalog_searcher import CatalogSearcher
 from datetime import datetime, timedelta
 from shapely.geometry import shape
 from shapely.ops import transform
-import pyproj
-import io
-from PIL import Image
-import numpy as np
-import json
+
 from geopy.geocoders import Nominatim
 from geopy.extra.rate_limiter import RateLimiter
 from geopy.exc import GeocoderTimedOut, GeocoderUnavailable
 from shapely.geometry import Point
 from shapely.geometry.polygon import Polygon
-from streamlit_searchbox import st_searchbox
 
 app_config_data = AppConfig()
 
