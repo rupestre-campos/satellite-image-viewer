@@ -1,8 +1,6 @@
-import io
 import json
 import pyproj
 import numpy as np
-from PIL import Image
 import streamlit as st
 
 from app_config import AppConfig
@@ -18,6 +16,8 @@ from geopy.extra.rate_limiter import RateLimiter
 from geopy.exc import GeocoderTimedOut, GeocoderUnavailable
 from shapely.geometry import Point
 from shapely.geometry.polygon import Polygon
+import io
+from PIL import Image
 
 app_config_data = AppConfig()
 
@@ -78,13 +78,12 @@ def image_render(stac_item, geometry):
 @st.cache_data
 def mosaic_render(stac_list, geometry):
     renderer = ImageRenderer(stac_list=stac_list, geojson_geometry=geometry)
-    image_data = renderer.render_mosaic_from_stac()
-    return image_data
+    image_data = renderer.render_mosaic_from_stac(zip_file=True)
+    image_read = io.BytesIO(image_data["image"])
+    image_read = Image.open(image_read)
+    image_data["image"] = np.asarray(image_read)
 
-def render_image(stac_items, geometry, render_mosaic):
-    if render_mosaic:
-        return mosaic_render(stac_items, geometry)
-    return image_render(stac_items[0], geometry)
+    return image_data
 
 def compute_area_hectares(geojson_dict):
     if not geojson_dict:
@@ -102,6 +101,7 @@ def reproject(point, from_epsg, to_epsg):
     return Point(lon, lat)
 
 def buffer_point(point, buffer_distance):
+    return point.buffer(buffer_distance)
     # Calculate half distance to form a square
     half_distance = buffer_distance / 2
 
@@ -124,35 +124,20 @@ def buffer_area(latitude, longitude, buffer_distance=100):
     return json.dumps(Polygon(buffered_point_4326).__geo_interface__)
 
 
-def create_download_image_button(image_data):
-    with io.BytesIO() as buffer:
-        # Write array to buffer
-        image_data = Image.fromarray((image_data*255).astype(np.uint8))
-        image_data.save(buffer, format="JPEG")
-        btn = st.download_button(
-            label="Download image",
-            data = buffer,
-            file_name = 'sentinel2.jpeg',
-            mime="image/jpeg"
-        )
-
-def create_download_geojson_button(geometry, properties):
-    feature = {
-        "type": "Feature",
-        "properties": properties,
-        "geometry": geometry
-    }
-
+def create_download_zip_button(zip_file, name):
+    zip_name = name[:128].replace(',','-')
     btn = st.download_button(
-        label="Download polygon",
-        data = json.dumps(feature),
-        file_name = 'sentinel2_polygon.geojson',
-        mime="application/json"
+        label="Download data",
+        data = zip_file,
+        file_name = f"{zip_name}.zip",
+        mime="application/octet-stream"
     )
 
 def startup_session_variables():
     if "geometry" not in st.session_state:
         st.session_state["geometry"] = {}
+    if "user_draw" not in st.session_state:
+        st.session_state["user_draw"] = {}
     if "where_to_go" not in st.session_state:
         st.session_state["where_to_go"] = ""
     if "end_date" not in st.session_state:
@@ -174,7 +159,7 @@ def main():
     web_map.add_base_map(app_config_data.esri_basemap, "esri satellite", "esri")
 
     st.title("Satellite Image Viewer")
-
+    st.write("Search where to go below or drop a pin on map to get fresh images")
     address_to_search = st.text_input("Search location", value=app_config_data.default_start_address)
     location = search_place(address_to_search)
     if address_to_search != st.session_state["where_to_go"]:
@@ -182,7 +167,7 @@ def main():
         st.session_state["geometry"] = None
 
     col1, col2 = st.columns(2)
-    render_mosaic = True
+
     with col1:
         selected_dates = st.slider(
             "Select a date range",
@@ -205,8 +190,10 @@ def main():
     warning_area = st.empty()
 
     if not st.session_state["geometry"]:
+        latitude = location[0]
+        longitude = location[1]
         st.session_state["geometry"] = json.loads(
-            buffer_area(location[0], location[1], app_config_data.buffer_width))
+            buffer_area(latitude, longitude, app_config_data.buffer_width))
 
     stac_items = catalog_search(
         app_config_data.stac_url,
@@ -217,19 +204,13 @@ def main():
     if len(stac_items) == 0:
         warning_area_user_input.write(f":red[Search returned no results, change date or max cloud cover]")
     if len(stac_items) > 0:
-        image_data = render_image(stac_items, st.session_state["geometry"], render_mosaic)
+        image_data = mosaic_render(stac_items, st.session_state["geometry"])
 
         st.write(f'Image ID: {image_data["name"]}')
 
         col1, col2 = st.columns(2)
         with col1:
-            create_download_image_button(image_data["image"])
-        with col2:
-            properties = {
-                "image_bounds": image_data["bounds"],
-                "image_id": image_data["name"]
-            }
-            create_download_geojson_button(st.session_state["geometry"], properties)
+            create_download_zip_button(image_data["zip_file"], image_data["name"])
 
         web_map.add_image(
             image_data["image"],
@@ -241,19 +222,24 @@ def main():
 
     web_map.add_layer_control()
     user_draw = web_map.render_web_map()
-    area_user_draw = 0
-    if user_draw["geometry"] != None:
-        area_user_draw = compute_area_hectares(user_draw)
-    if 0 < area_user_draw <= app_config_data.max_area_hectares \
-        and st.session_state["geometry"] != user_draw["geometry"]:
-        st.session_state["geometry"] = user_draw["geometry"]
+
+    if user_draw["geometry"] != None \
+        and st.session_state["user_draw"] != user_draw["geometry"]:
+        st.session_state["user_draw"] = user_draw["geometry"]
+        longitude = user_draw["geometry"]["coordinates"][0]
+        latitude = user_draw["geometry"]["coordinates"][1]
+        st.session_state["geometry"] = json.loads(
+            buffer_area(latitude, longitude, app_config_data.buffer_width))
         st.rerun()
+        return
 
-    if area_user_draw > app_config_data.max_area_hectares:
-        warning_area_user_input.write(f":red[Polygon drawn area too big: {area_user_draw:.2f}ha]")
-        warning_area.write(f":red[draw smaller box with max:  {app_config_data.max_area_hectares:.2f}ha]")
-
-    st.write("this application does not collect data but use carefully ;)")
+    st.write("This application does not collect data but use carefully ;)")
+    st.write("Made with:  STAC API from element84 to search images via pystac")
+    st.write("rio_tiller to read and render STAC/COG links into a real image")
+    st.write("folium/leaflet for the map and drawing")
+    st.write("Open Street Maps and Nominatim to search addresses and street basemap")
+    st.write("Satellite basemaps from google and esri")
+    st.write("streamlit and streamlit cloud solution for UI and hosting")
 
     st.write("[Code on GitHub](https://github.com/rupestre-campos/satellite-image-viewer)")
     return True

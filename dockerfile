@@ -10,8 +10,7 @@ RUN pip install --no-cache-dir --upgrade pip -r requirements.txt
 EXPOSE 8001
 
 ENV STREAMLIT_SERVER_PORT=8001
-ENV BUFFER_WIDTH=50000
-ENV MAX_AREA_HECTARES=100000
+ENV BUFFER_WIDTH=3000
 ENV EMAIL_NOMINATIM="test-satellite-viewer@null.com"
 
 CMD ["streamlit", "run", "main.py"]

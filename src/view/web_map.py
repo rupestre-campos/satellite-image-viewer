@@ -35,8 +35,9 @@ class WebMap:
             draw_options={
                 "polyline": False,
                 "polygon": False,
+                "rectangle": False,
                 "circle": False,
-                "marker": False,
+                "marker": True,
                 "circlemarker": False
             },
             edit_options={
@@ -70,7 +71,7 @@ class WebMap:
         polygon = folium.GeoJson(
             geojson_polygon,
             name="Polygon",
-            show=False,
+            show=True,
             style_function=lambda feature: {
                 "fillColor": None,
                 "fill":None,
