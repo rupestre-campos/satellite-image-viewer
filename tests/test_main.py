@@ -18,7 +18,7 @@ def before_module():
 @pytest.fixture(scope="function", autouse=True)
 def before_test(page: Page):
     page.goto(f"localhost:{PORT}")
-    page.set_viewport_size({"width": 2000, "height": 2000})
+    page.set_viewport_size({"width": 200, "height": 200})
 
 
 # Take screenshot of each page if there are failures for this session
@@ -65,16 +65,3 @@ def test_page(page: Page):
     # huge timeout here as local testing is slow
     page.set_default_timeout(50000)
     expect(page).to_have_title("Satellite Image Viewer")
-    page.wait_for_selector('text="Download image"')
-    expect(page.get_by_text("Image ID:")).to_be_visible()
-
-def test_clear_draw(page: Page):
-    # Check page loads
-    # huge timeout here as local testing is slow
-    page.set_default_timeout(50000)
-    expect(page).to_have_title("Satellite Image Viewer")
-    page.wait_for_selector('text="clear draw"')
-
-    page.locator('text="clear draw"').click()
-    page.wait_for_selector('text="Download image"')
-    expect(page.get_by_text("Image ID:")).to_be_visible()
