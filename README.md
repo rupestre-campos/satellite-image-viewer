@@ -30,3 +30,11 @@ playwright install
 # run tests
 pytest tests/
 ```
+
+## Docker build
+
+```
+docker build -t sat-img-view .
+docker run -d --name sat-img-view-container -p 8001:8001 sat-img-view
+docker start sat-img-view-container
+```
