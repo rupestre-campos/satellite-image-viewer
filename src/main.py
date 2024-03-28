@@ -182,12 +182,7 @@ def main():
     with col2:
         max_cloud_percent = st.slider("Maximum cloud cover", min_value=0, max_value=100, value=30, step=5)
 
-    clear_draw = st.button("clear draw")
-    if clear_draw:
-        st.session_state["geometry"] = {}
-
     warning_area_user_input = st.empty()
-    warning_area = st.empty()
 
     if not st.session_state["geometry"]:
         latitude = location[0]
