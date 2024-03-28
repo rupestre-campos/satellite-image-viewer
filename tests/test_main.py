@@ -49,7 +49,7 @@ def run_streamlit():
                 PORT,
                 "--server.headless",
                 "true",
-            ]
+            ],
         )
 
         sleep(5)
@@ -63,7 +63,7 @@ def run_streamlit():
 def test_page(page: Page):
     # Check page loads
     # huge timeout here as local testing is slow
-    page.set_default_timeout(300000)
+    page.set_default_timeout(50000)
     expect(page).to_have_title("Satellite Image Viewer")
     page.wait_for_selector('text="Download image"')
     expect(page.get_by_text("Image ID:")).to_be_visible()
@@ -71,7 +71,7 @@ def test_page(page: Page):
 def test_clear_draw(page: Page):
     # Check page loads
     # huge timeout here as local testing is slow
-    page.set_default_timeout(300000)
+    page.set_default_timeout(50000)
     expect(page).to_have_title("Satellite Image Viewer")
     page.wait_for_selector('text="clear draw"')
 

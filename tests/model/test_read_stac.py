@@ -1,43 +1,42 @@
 import pytest
 import json
-import numpy as np
-from model.read_stac import ReadSTAC
+from model.search_stac import SearchSTAC
+from app_config import AppConfig
+from datetime import datetime
+
+app_config_data = AppConfig()
 
 @pytest.fixture
-def stac_item():
-    with open("tests/data/stac_item.json") as test_data:
-        return json.load(test_data)
+def stac_url():
+    return app_config_data.stac_url
 
 @pytest.fixture
 def feature_geojson():
     with open("tests/data/polygon_feature.geojson") as test_data:
-        polygon_geojson = json.load(test_data)
-    return {
-            "type": "Feature",
-            "properties": {},
-            "geometry": polygon_geojson
-        }
+        return json.load(test_data)
 
 @pytest.fixture
-def sample_image():
-    return np.array(0)
+def datestring():
+    end_date = datetime.now()
+    start_date = datetime(2015, 6, 22)
+    return f"{start_date.strftime('%Y-%m-%d')}/{end_date.strftime('%Y-%m-%d')}"
 
-def test_init_read_stac(feature_geojson):
-    stac_reader = ReadSTAC()
-    assert isinstance(stac_reader, ReadSTAC)
+def test_init_search_stac(stac_url, feature_geojson):
+    stac_client = SearchSTAC(stac_url, feature_geojson)
+    assert isinstance(stac_client, SearchSTAC)
 
-def test_render_image(stac_item, feature_geojson, sample_image):
-    stac_reader = ReadSTAC(
-        stac_item=stac_item,
-        geojson_geometry=feature_geojson)
-    image_data = stac_reader.render_image_from_stac()
-    assert isinstance(image_data["image"], type(sample_image))
-    assert isinstance(image_data["bounds"], list)
+def test_search_collections(stac_url):
+    stac_client = SearchSTAC(stac_url, feature_geojson=None)
+    results = stac_client.get_collections()
+    assert isinstance(results, list)
 
-def test_render_mosaic(stac_item, feature_geojson, sample_image):
-    stac_reader = ReadSTAC(
-        stac_list=[stac_item for i in range(10)],
-        geojson_geometry=feature_geojson)
-    image_data = stac_reader.render_mosaic_from_stac()
-    assert isinstance(image_data["image"], type(sample_image))
-    assert isinstance(image_data["bounds"], list)
+def test_search_collection_info(stac_url):
+    stac_client = SearchSTAC(stac_url, feature_geojson=None)
+    results = stac_client.get_collection_info()
+    assert isinstance(results, dict)
+
+def test_search_stac(stac_url, feature_geojson, datestring):
+    stac_client = SearchSTAC(stac_url, feature_geojson=feature_geojson)
+    kwargs = {"datetime":datestring, "max_items":10}
+    results = stac_client.get_items(**kwargs)
+    assert isinstance(results, list)
