@@ -162,8 +162,6 @@ def startup_session_variables():
         st.session_state["data_range_values"] = (
             st.session_state["end_date"] - timedelta(days=365),
             st.session_state["end_date"])
-    if "default_cloud_cover" not in st.session_state:
-        st.session_state["default_cloud_cover"] = app_config_data.default_cloud_cover
 
 def main():
     startup_session_variables()
@@ -206,7 +204,7 @@ def main():
             "Maximum cloud cover",
             min_value=0.0,
             max_value=100.0,
-            value=st.session_state["default_cloud_cover"],
+            value=app_config_data.default_cloud_cover,
             step=0.5
         )
     warning_area_user_input_location = st.empty()
