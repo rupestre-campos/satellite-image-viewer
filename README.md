@@ -1,4 +1,5 @@
 [![Python application](https://github.com/rupestre-campos/satellite-image-viewer/actions/workflows/python-app.yml/badge.svg?branch=main)](https://github.com/rupestre-campos/satellite-image-viewer/actions/workflows/python-app.yml)
+[![codecov](https://codecov.io/gh/rupestre-campos/satellite-image-viewer/graph/badge.svg?token=1JSBKMUAN2)](https://codecov.io/gh/rupestre-campos/satellite-image-viewer)
 # satellite image viewer
 Simple app to show recent satellite images
 
