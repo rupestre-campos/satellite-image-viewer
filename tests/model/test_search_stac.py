@@ -32,11 +32,11 @@ def test_search_collections(stac_url):
 
 def test_search_collection_info(stac_url):
     stac_client = SearchSTAC(stac_url, feature_geojson=None)
-    results = stac_client.get_collection_info()
+    results = stac_client.get_collection_info("sentinel-2-l2a")
     assert isinstance(results, dict)
 
 def test_search_stac(stac_url, feature_geojson, datestring):
     stac_client = SearchSTAC(stac_url, feature_geojson=feature_geojson)
-    kwargs = {"datetime":datestring, "max_items":10}
+    kwargs = {"datetime":datestring, "max_items":3}
     results = stac_client.get_items(**kwargs)
     assert isinstance(results, list)

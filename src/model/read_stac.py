@@ -4,38 +4,17 @@ from rio_tiler.mosaic import mosaic_reader
 import io
 import zipfile
 import json
+import os
 
 class ReadSTAC:
-    def __init__(
-            self,
-            stac_item={},
-            stac_list=[],
-            geojson_geometry={},
-            nodata=0,
-            min_value=0,
-            max_value=4000
-        ):
+    def __init__(self):
         self.default_crs = "EPSG:4326"
-        self.assets = ("red", "green", "blue",)
         self.formats = {"PNG":"PGW", "JPEG":"JGW"}
-        self.stac_item = stac_item
-        self.stac_list = stac_list
-        self.geojson_geometry = geojson_geometry
-        self.min_value = min_value
-        self.max_value = max_value
-        self.nodata = nodata
-        self.color_formula = "sigmoidal RGB 6 0.1 gamma G 1.1 gamma B 1.2 saturation 1.2"
 
     @staticmethod
-    def __tiler(item, *args, **kwargs):
+    def __tiler( item, *args, **kwargs):
         with STACReader(None, item=item) as stac:
             return stac.feature(*args,**kwargs)
-
-    @staticmethod
-    def __parse_image_format(image_format):
-        if image_format=="JPEG":
-            return "JPEG"
-        return image_format
 
     def __get_image_bounds(self, image):
         left, bottom, right, top = [i for i in image.bounds]
@@ -73,27 +52,50 @@ class ReadSTAC:
 
         return zip_buffer.getvalue()
 
-    def render_mosaic_from_stac(self, image_format="PNG", zip_file=False):
-        args = (self.geojson_geometry, )
-        kwargs = {"assets": self.assets, "max_size": None, "nodata":0}
-        if image_format not in self.formats:
-            raise ValueError("Format not accepted")
-        image_data, assets_used = mosaic_reader(self.stac_list, self.__tiler, *args, **kwargs)
+    @staticmethod
+    def __set_env_vars_read_s3(params):
+        os.environ["AWS_ACCESS_KEY_ID"] = params.get("aws_access_key_id","")
+        os.environ["AWS_SECRET_ACCESS_KEY"] = params.get("aws_secret_access_key","")
+        os.environ["AWS_NO_SIGN_REQUESTS"] = params.get("aws_no_sign_requests","NO")
+        os.environ["AWS_REQUEST_PAYER"] = params.get("aws_request_payer","provider")
+        os.environ["AWS_REGION"] = params.get("aws_region_name","")
 
+    @staticmethod
+    def __unset_env_vars_read_s3():
+        os.environ["AWS_ACCESS_KEY_ID"] = ""
+        os.environ["AWS_SECRET_ACCESS_KEY"] = ""
+        os.environ["AWS_NO_SIGN_REQUESTS"] = "NO"
+        os.environ["AWS_REQUEST_PAYER"] = "provider"
+        os.environ["AWS_REGION"] = ""
+
+
+    def render_mosaic_from_stac(self, params):
+        args = (params.get("geojson_geometry"), )
+        kwargs = {
+            "assets":  params.get("assets"),
+            "max_size": params.get("max_size"),
+            "nodata": params.get("nodata")
+        }
+        if params.get("image_format") not in self.formats:
+            raise ValueError("Format not accepted")
+
+        self.__set_env_vars_read_s3(params)
+        image_data, assets_used = mosaic_reader(params.get("stac_list"), self.__tiler, *args, **kwargs)
+        self.__unset_env_vars_read_s3()
         image = image_data.post_process(
-            in_range=((self.min_value, self.max_value),),
-            color_formula=self.color_formula,
+            in_range=((params.get("min_value"), params.get("max_value")),),
+            color_formula=params.get("color_formula"),
         )
-        image = image.render(img_format=self.__parse_image_format(image_format))
+        image = image.render(img_format=params.get("image_format"))
         image_bounds = self.__get_image_bounds(image_data)
 
         world_file = self.__get_world_file_content(image_bounds, image_data)
-        if zip_file:
+        if params.get("zip_file"):
             zip_file = self.__create_zip_geoimage(
                 image,
                 world_file,
-                image_format,
-                self.geojson_geometry,
+                params.get("image_format"),
+                params.get("geojson_geometry"),
                 assets_used
             )
             return {

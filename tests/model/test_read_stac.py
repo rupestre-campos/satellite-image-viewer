@@ -57,36 +57,65 @@ def test_init_read_stac(feature_geojson):
 
 def test_render_mosaic(stac_item, feature_geojson, sample_image):
     image_format = "PNG"
-    stac_reader = ReadSTAC(
-        stac_list=[stac_item for i in range(2)],
-        geojson_geometry=feature_geojson)
-    image_data = stac_reader.render_mosaic_from_stac(image_format=image_format)
+    stac_list=[stac_item for i in range(2)]
+    stac_reader = ReadSTAC()
+    params = {
+            "geojson_geometry": feature_geojson,
+            "stac_list": stac_list,
+            "image_format": image_format,
+            "assets":("red", "green", "blue"),
+            "min_value": 0,
+            "max_value": 4000,
+            "max_size": 52
+    }
+    image_data = stac_reader.render_mosaic_from_stac(params)
     assert isinstance(image_data["image"], type(sample_image))
     assert isinstance(image_data["bounds"], list)
     assert isinstance(image_data["projection_file"], str)
 
 def test_render_mosaic_jpeg(stac_item, feature_geojson, sample_image_jpeg):
     image_format = "JPEG"
-    stac_reader = ReadSTAC(
-        stac_list=[stac_item for i in range(2)],
-        geojson_geometry=feature_geojson)
-    image_data = stac_reader.render_mosaic_from_stac(image_format=image_format)
+    stac_list=[stac_item for i in range(2)]
+    stac_reader = ReadSTAC()
+    params = {
+            "geojson_geometry": feature_geojson,
+            "stac_list": stac_list,
+            "image_format": image_format,
+            "assets":("red", "green", "blue"),
+            "min_value": 0,
+            "max_value": 4000,
+            "max_size": 52
+    }
+    image_data = stac_reader.render_mosaic_from_stac(params)
     assert isinstance(image_data["image"], type(sample_image_jpeg))
     assert isinstance(image_data["bounds"], list)
     assert isinstance(image_data["projection_file"], str)
 
 def test_render_mosaic_format_error(stac_item, feature_geojson, sample_image):
     image_format = "GNP"
-    stac_reader = ReadSTAC(
-        stac_list=[stac_item for i in range(2)],
-        geojson_geometry=feature_geojson)
+    stac_list=[stac_item for i in range(2)]
+    stac_reader = ReadSTAC()
+    params = {
+            "geojson_geometry": feature_geojson,
+            "stac_list": stac_list,
+            "image_format": image_format,
+    }
     with pytest.raises(ValueError):
-        stac_reader.render_mosaic_from_stac(image_format=image_format)
+        stac_reader.render_mosaic_from_stac(params)
 
 def test_render_mosaic_zip(stac_item, feature_geojson, sample_image_zip):
     image_format = "PNG"
-    stac_reader = ReadSTAC(
-        stac_list=[stac_item for i in range(2)],
-        geojson_geometry=feature_geojson)
-    image_data = stac_reader.render_mosaic_from_stac(image_format=image_format, zip_file=True)
+    stac_list=[stac_item for i in range(2)]
+    stac_reader = ReadSTAC()
+    params = {
+            "geojson_geometry": feature_geojson,
+            "stac_list": stac_list,
+            "image_format": image_format,
+            "zip_file": True,
+            "assets":("red", "green", "blue"),
+            "min_value": 0,
+            "max_value": 4000,
+            "max_size": 52
+    }
+    image_data = stac_reader.render_mosaic_from_stac(params)
     assert isinstance(image_data["zip_file"], type(sample_image_zip))
