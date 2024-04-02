@@ -38,3 +38,9 @@ docker build -t sat-img-view .
 docker run -d --name sat-img-view-container -p 8001:8001 sat-img-view
 docker start sat-img-view-container
 ```
+
+## Landsat Configuration
+
+Landsat is not free, open but not free as the requester pays for download.
+To work you must have a AWS account and provide credentials to read from S3 using environment variables to set LANDSAT_ACCESS_KEY_ID and LANDSAT_SECURITY_ACCESS_KEY or access denied on the way.
+Also set ENABLE_LANDSAT=TRUE and leave rest as default.
