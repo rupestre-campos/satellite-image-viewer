@@ -26,7 +26,7 @@ st.set_page_config(
     page_icon=":satellite:",
     layout="wide",
 )
-
+renderer = ImageRenderer()
 geolocator = Nominatim(
     timeout=3,
     user_agent=f"satellite-image-viewer+{app_config_data.email}"
@@ -60,25 +60,28 @@ def search_place(address):
     return (location.latitude, location.longitude)
 
 @st.cache_data
-def catalog_search(stac_url, geometry, date_string, max_cloud_cover):
+def catalog_search(stac_url, geometry, date_string, max_cloud_cover, satellite_sensor, platforms):
     catalog_worker = CatalogSearcher(
         stac_url,
         feature_geojson=geometry,
         date_string=date_string,
-        max_cloud_cover=max_cloud_cover
+        max_cloud_cover=max_cloud_cover,
+        collection=satellite_sensor,
+        platforms=platforms
     )
     return catalog_worker.search_images()
 
 @st.cache_data
-def image_render(stac_item, geometry):
-    renderer = ImageRenderer(stac_item=stac_item, geojson_geometry=geometry)
-    image_data = renderer.render_image_from_stac()
-    return image_data
+def mosaic_render(stac_list, geojson_geometry, satellite_params):
+    params = satellite_params.copy()
+    params.update({
+        "zip_file": True,
+        "image_format": "PNG",
+        "geojson_geometry": geojson_geometry,
+        "stac_list": stac_list
+    })
 
-@st.cache_data
-def mosaic_render(stac_list, geometry):
-    renderer = ImageRenderer(stac_list=stac_list, geojson_geometry=geometry)
-    image_data = renderer.render_mosaic_from_stac(zip_file=True)
+    image_data = renderer.render_mosaic_from_stac(params)
     image_read = io.BytesIO(image_data["image"])
     image_read = Image.open(image_read)
     image_data["image"] = np.asarray(image_read)
@@ -102,19 +105,6 @@ def reproject(point, from_epsg, to_epsg):
 
 def buffer_point(point, buffer_distance):
     return point.buffer(buffer_distance)
-    # Calculate half distance to form a square
-    half_distance = buffer_distance / 2
-
-    # Create vertices of the square
-    left_bottom = Point(point.x - half_distance, point.y - half_distance)
-    left_top = Point(point.x - half_distance, point.y + half_distance)
-    right_bottom = Point(point.x + half_distance, point.y - half_distance)
-    right_top = Point(point.x + half_distance, point.y + half_distance)
-
-    # Create a polygon from the vertices
-    square = Polygon([left_bottom, left_top, right_top, right_bottom])
-
-    return square
 
 def buffer_area(latitude, longitude, buffer_distance=100):
     input_point = Point(longitude, latitude)
@@ -133,6 +123,30 @@ def create_download_zip_button(zip_file, name):
         mime="application/octet-stream"
     )
 
+def create_datestring_from_selected_dates(selected_dates):
+    start_date = selected_dates[0].strftime('%Y-%m-%d')
+    end_date = selected_dates[1].strftime('%Y-%m-%d')
+    return f"{start_date}/{end_date}"
+
+def parse_location(location):
+    warning = ""
+    latitude = 0
+    longitude = 0
+    if location:
+        latitude = location[0]
+        longitude = location[1]
+        return {
+            "latitude": latitude,
+            "longitude": longitude,
+            "warning": warning
+        }
+    warning = "Location not found."
+    return  {
+        "latitude": latitude,
+        "longitude": longitude,
+        "warning": warning
+    }
+
 def startup_session_variables():
     if "geometry" not in st.session_state:
         st.session_state["geometry"] = {}
@@ -144,10 +158,12 @@ def startup_session_variables():
         st.session_state["end_date"] = datetime.now()
     if "start_date" not in st.session_state:
         st.session_state["start_date"] = datetime(2015, 6, 22)
-    if "date_range_value" not in st.session_state:
-        st.session_state["data_range_value"] = (
+    if "date_range_values" not in st.session_state:
+        st.session_state["data_range_values"] = (
             st.session_state["end_date"] - timedelta(days=365),
             st.session_state["end_date"])
+    if "default_cloud_cover" not in st.session_state:
+        st.session_state["default_cloud_cover"] = app_config_data.default_cloud_cover
 
 def main():
     startup_session_variables()
@@ -161,45 +177,69 @@ def main():
     st.title("Satellite Image Viewer")
     st.write("Search where to go below or drop a pin on map to get fresh images")
     address_to_search = st.text_input("Search location", value=app_config_data.default_start_address)
-    location = search_place(address_to_search)
-    if address_to_search != st.session_state["where_to_go"]:
-        st.session_state["where_to_go"] = address_to_search
-        st.session_state["geometry"] = None
+
+
+    satellite_sensor = st.radio(
+        "Satellite",
+        options=sorted(list(app_config_data.satelites.keys())),
+        index=app_config_data.default_satellite_choice_index
+    )
+    satellite_sensor_params = app_config_data.satelites.get(satellite_sensor)
 
     col1, col2 = st.columns(2)
 
     with col1:
+        st.session_state["start_date"] = datetime.strptime(satellite_sensor_params.get("start_date"), "%Y-%m-%d")
+        st.session_state["end_date"] = datetime.strptime(satellite_sensor_params.get("end_date"), "%Y-%m-%d")
         selected_dates = st.slider(
             "Select a date range",
             min_value=st.session_state["start_date"],
             max_value=st.session_state["end_date"],
-            value=st.session_state["data_range_value"],
+            value=st.session_state["data_range_values"],
             step=timedelta(days=1),
             format="YYYY-MM-DD"
         )
         st.session_state["data_range_values"] = selected_dates
-        date_string = f"{selected_dates[0].strftime('%Y-%m-%d')}/{selected_dates[1].strftime('%Y-%m-%d')}"
+        date_string = create_datestring_from_selected_dates(selected_dates)
     with col2:
-        max_cloud_percent = st.slider("Maximum cloud cover", min_value=0, max_value=100, value=30, step=5)
-
+        max_cloud_percent = st.slider(
+            "Maximum cloud cover",
+            min_value=0.0,
+            max_value=100.0,
+            value=st.session_state["default_cloud_cover"],
+            step=0.5
+        )
+    warning_area_user_input_location = st.empty()
     warning_area_user_input = st.empty()
 
-    if not st.session_state["geometry"]:
-        latitude = location[0]
-        longitude = location[1]
+    if address_to_search != st.session_state["where_to_go"]:
+        st.session_state["where_to_go"] = address_to_search
+        location = search_place(address_to_search)
+        parsed_location = parse_location(location)
+        if parsed_location["warning"]:
+            warning_area_user_input_location.write(f":red[Location not found, try different keywords]")
+
         st.session_state["geometry"] = json.loads(
-            buffer_area(latitude, longitude, app_config_data.buffer_width))
+            buffer_area(
+                parsed_location["latitude"],
+                parsed_location["longitude"],
+                app_config_data.buffer_width
+            )
+        )
 
     stac_items = catalog_search(
         app_config_data.stac_url,
         st.session_state["geometry"],
         date_string,
-        max_cloud_percent
+        max_cloud_percent,
+        satellite_sensor_params["collection_name"],
+        satellite_sensor_params["platforms"]
     )
+
     if len(stac_items) == 0:
         warning_area_user_input.write(f":red[Search returned no results, change date or max cloud cover]")
     if len(stac_items) > 0:
-        image_data = mosaic_render(stac_items, st.session_state["geometry"])
+        image_data = mosaic_render(stac_items, st.session_state["geometry"], satellite_sensor_params)
 
         st.write(f'Image ID: {image_data["name"]}')
 
@@ -210,7 +250,7 @@ def main():
         web_map.add_image(
             image_data["image"],
             image_data["bounds"],
-            "sentinel 2 image",
+            satellite_sensor_params["name"],
             )
 
         web_map.add_polygon(st.session_state["geometry"])

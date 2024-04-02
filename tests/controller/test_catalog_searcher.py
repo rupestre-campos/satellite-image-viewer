@@ -31,3 +31,9 @@ def test_catalog_search(stac_url, feature_geojson, datestring, mocker):
     mocker.patch("model.search_stac.SearchSTAC.get_items", return_value=[])
     searcher = CatalogSearcher(stac_url, feature_geojson, datestring)
     assert searcher.search_images() == []
+
+def test_catalog_search_platforms(stac_url, feature_geojson, datestring, mocker):
+    mocker.patch("model.search_stac.SearchSTAC.connect_client", return_value=None)
+    mocker.patch("model.search_stac.SearchSTAC.get_items", return_value=[])
+    searcher = CatalogSearcher(stac_url, feature_geojson, datestring, platforms=["landsat-5"])
+    assert searcher.search_images() == []

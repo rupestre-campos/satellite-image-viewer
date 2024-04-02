@@ -46,8 +46,8 @@ def sample_image_zip():
         zip_file.writestr("image.png", image_bytes_io.getvalue())
         return zip_buffer.getvalue()
 
-def test_init_read_stac(stac_item, feature_geojson):
-    image_renderer = ImageRenderer(stac_item, feature_geojson)
+def test_init_read_stac():
+    image_renderer = ImageRenderer()
     assert isinstance(image_renderer, ImageRenderer)
 
 def test_render_mosaic(mocker, stac_list, feature_geojson, sample_image):
@@ -55,19 +55,26 @@ def test_render_mosaic(mocker, stac_list, feature_geojson, sample_image):
         "model.read_stac.ReadSTAC.render_mosaic_from_stac",
         return_value={"image":sample_image, "bounds":[[0,0],[100,100]]}
     )
-    image_renderer = ImageRenderer(stac_list=stac_list, geojson_geometry=feature_geojson)
-
-    image_data = image_renderer.render_mosaic_from_stac()
+    image_renderer = ImageRenderer()
+    params = {
+        "stac_list":stac_list,
+        "geojson_geometry": feature_geojson
+    }
+    image_data = image_renderer.render_mosaic_from_stac(params)
     assert isinstance(image_data["image"], type(sample_image))
     assert isinstance(image_data["bounds"], list)
 
 
-def test_render_mosaic(mocker, stac_list, feature_geojson, sample_image_zip):
+def test_render_mosaic_zip(mocker, stac_list, feature_geojson, sample_image_zip):
     mocker.patch(
         "model.read_stac.ReadSTAC.render_mosaic_from_stac",
         return_value={"zip_file":sample_image_zip }
     )
-    image_renderer = ImageRenderer(stac_list=stac_list, geojson_geometry=feature_geojson)
-
-    image_data = image_renderer.render_mosaic_from_stac(zip_file=True)
+    image_renderer = ImageRenderer()
+    params = {
+        "stac_list":stac_list,
+        "geojson_geometry": feature_geojson,
+        "zip_file": True
+    }
+    image_data = image_renderer.render_mosaic_from_stac(params)
     assert isinstance(image_data["zip_file"], type(sample_image_zip))

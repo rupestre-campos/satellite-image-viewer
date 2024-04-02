@@ -160,3 +160,4 @@ cython_debug/
 #.idea/
 
 tests/data/screenshot*
+start_streamlit.sh
