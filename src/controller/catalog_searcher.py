@@ -3,35 +3,22 @@ from model.search_stac import SearchSTAC
 class CatalogSearcher:
     def __init__(
             self,
-            stac_url,
-            feature_geojson,
-            date_string,
-            max_cloud_cover=100,
-            max_items=5,
-            collection="sentinel-2-l2a",
-            platforms=""
+            stac_url
         ):
         self.stac_url = stac_url
-        self.feature_geojson = feature_geojson
-        self.date_string = date_string
-        self.max_cloud_cover = max_cloud_cover
-        self.max_items = max_items
-        self.collection = collection
-        self.platforms = platforms
+        self.search_stac = SearchSTAC(stac_url=self.stac_url)
 
-    def search_images(self):
+    def search_images(self, params):
         kwargs = {
-            "datetime": self.date_string,
-            "max_items":self.max_items,
-            "collections": [self.collection],
+            "datetime": params.get("date_string"),
+            "max_items": params.get("max_items"),
+            "collections": [params.get("collection")],
+            "intersects": params.get("feature_geojson"),
             "query":{
-                "eo:cloud_cover":{"lte":self.max_cloud_cover},
+                "eo:cloud_cover":{"lte":params.get("max_cloud_cover")},
             }
         }
-        if self.platforms:
-            kwargs["query"].update({"platform":{"in": self.platforms}})
-        stac_searcher = SearchSTAC(
-            self.stac_url,
-            feature_geojson=self.feature_geojson,
-        )
-        return stac_searcher.get_items(**kwargs)
+        if params.get("platforms"):
+            kwargs["query"].update({"platform":{"in": params.get("platforms")}})
+
+        return self.search_stac.get_items(**kwargs)
