@@ -1,5 +1,6 @@
-import json
-import pyproj
+import io
+from PIL import Image
+
 import numpy as np
 import streamlit as st
 
@@ -8,16 +9,9 @@ from view.web_map import WebMap
 from controller.image_renderer import ImageRenderer
 from controller.catalog_searcher import CatalogSearcher
 from controller.address_searcher import AddressSearcher
+from controller.point_bufferer import PointBufferer
 from controller.environment_variable_manager import EnvContextManager
 from datetime import datetime, timedelta
-from shapely.geometry import shape
-from shapely.ops import transform
-
-
-from shapely.geometry import Point
-from shapely.geometry.polygon import Polygon
-import io
-from PIL import Image
 
 app_config_data = AppConfig()
 
@@ -27,14 +21,14 @@ st.set_page_config(
     layout="wide",
 )
 renderer = ImageRenderer()
+worker_point_bufferer = PointBufferer()
 worker_address_searcher = AddressSearcher(
     user_agent=app_config_data.geocoder_user_agent
 )
 
-geographic_crs = pyproj.CRS("EPSG:4326")
-projected_crs = pyproj.CRS("EPSG:3857")
-project_4326_to_3857 = pyproj.Transformer.from_crs(geographic_crs, projected_crs, always_xy=True).transform
-project_3857_to_4326 = pyproj.Transformer.from_crs(projected_crs, geographic_crs, always_xy=True).transform
+@st.cache_data
+def buffer_point(latitude, longitude, distance):
+    return worker_point_bufferer.buffer(latitude, longitude, distance)
 
 @st.cache_data
 def search_place(address):
@@ -81,31 +75,6 @@ def mosaic_render(stac_list, geojson_geometry, satellite_params):
     image_data["image"] = np.asarray(image_read)
 
     return image_data
-
-def compute_area_hectares(geojson_dict):
-    if not geojson_dict:
-        return None
-
-    geometry = shape(geojson_dict["geometry"])
-    projected_geometry = transform(project_4326_to_3857, geometry)
-    area = projected_geometry.area
-
-    return area/10_000
-
-def reproject(point, from_epsg, to_epsg):
-    transformer = pyproj.Transformer.from_crs(from_epsg, to_epsg, always_xy=True)
-    lon, lat = transformer.transform(point.x, point.y)
-    return Point(lon, lat)
-
-def buffer_point(point, buffer_distance):
-    return point.buffer(buffer_distance)
-
-def buffer_area(latitude, longitude, buffer_distance=100):
-    input_point = Point(longitude, latitude)
-    input_point_3857 = transform(project_4326_to_3857, input_point)
-    buffered_point = buffer_point(input_point_3857, buffer_distance)
-    buffered_point_4326 = transform(project_3857_to_4326, buffered_point)
-    return json.dumps(Polygon(buffered_point_4326).__geo_interface__)
 
 
 def create_download_zip_button(zip_file, name):
@@ -211,13 +180,11 @@ def main():
         if parsed_location["warning"]:
             warning_area_user_input_location.write(f":red[Location not found, try different keywords]")
 
-        st.session_state["geometry"] = json.loads(
-            buffer_area(
+        st.session_state["geometry"] = buffer_point(
                 parsed_location["latitude"],
                 parsed_location["longitude"],
                 app_config_data.buffer_width
             )
-        )
 
     stac_items = catalog_search(
         app_config_data.stac_url,
@@ -255,8 +222,7 @@ def main():
         st.session_state["user_draw"] = user_draw["geometry"]
         longitude = user_draw["geometry"]["coordinates"][0]
         latitude = user_draw["geometry"]["coordinates"][1]
-        st.session_state["geometry"] = json.loads(
-            buffer_area(latitude, longitude, app_config_data.buffer_width))
+        st.session_state["geometry"] = buffer_point(latitude, longitude, app_config_data.buffer_width)
         st.rerun()
         return
 
