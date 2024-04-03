@@ -31,6 +31,10 @@ def sample_image():
         return buffer.getvalue()
 
 @pytest.fixture
+def sample_image_array():
+    return np.zeros(100)
+
+@pytest.fixture
 def sample_image_jpeg():
     with io.BytesIO() as buffer:
         # Write array to buffer
@@ -119,3 +123,22 @@ def test_render_mosaic_zip(stac_item, feature_geojson, sample_image_zip):
     }
     image_data = stac_reader.render_mosaic_from_stac(params)
     assert isinstance(image_data["zip_file"], type(sample_image_zip))
+
+def test_render_mosaic_image_array(stac_item, feature_geojson, sample_image_array):
+    image_format = "PNG"
+    stac_list=[stac_item for i in range(2)]
+    stac_reader = ReadSTAC()
+    params = {
+            "geojson_geometry": feature_geojson,
+            "stac_list": stac_list,
+            "image_format": image_format,
+            "assets":("red", "green", "blue"),
+            "min_value": 0,
+            "max_value": 4000,
+            "max_size": 52,
+            "image_as_array": True
+    }
+    image_data = stac_reader.render_mosaic_from_stac(params)
+    assert isinstance(image_data["image"], type(sample_image_array))
+    assert isinstance(image_data["bounds"], list)
+    assert isinstance(image_data["projection_file"], str)
