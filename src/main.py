@@ -7,14 +7,13 @@ from app_config import AppConfig
 from view.web_map import WebMap
 from controller.image_renderer import ImageRenderer
 from controller.catalog_searcher import CatalogSearcher
+from controller.address_searcher import AddressSearcher
 from controller.environment_variable_manager import EnvContextManager
 from datetime import datetime, timedelta
 from shapely.geometry import shape
 from shapely.ops import transform
 
-from geopy.geocoders import Nominatim
-from geopy.extra.rate_limiter import RateLimiter
-from geopy.exc import GeocoderTimedOut, GeocoderUnavailable
+
 from shapely.geometry import Point
 from shapely.geometry.polygon import Polygon
 import io
@@ -28,37 +27,21 @@ st.set_page_config(
     layout="wide",
 )
 renderer = ImageRenderer()
-geolocator = Nominatim(
-    timeout=3,
-    user_agent=f"satellite-image-viewer+{app_config_data.email}"
+worker_address_searcher = AddressSearcher(
+    user_agent=app_config_data.geocoder_user_agent
 )
-geocode = RateLimiter(geolocator.geocode, min_delay_seconds=2)
 
 geographic_crs = pyproj.CRS("EPSG:4326")
 projected_crs = pyproj.CRS("EPSG:3857")
 project_4326_to_3857 = pyproj.Transformer.from_crs(geographic_crs, projected_crs, always_xy=True).transform
 project_3857_to_4326 = pyproj.Transformer.from_crs(projected_crs, geographic_crs, always_xy=True).transform
 
-
-def do_geocode(address, attempt=1, max_attempts=5):
-    try:
-        return geolocator.geocode(address)
-    except GeocoderUnavailable:
-        if attempt <= max_attempts:
-            return do_geocode(address, attempt=attempt+1)
-        raise Exception("Too many searches")
-    except GeocoderTimedOut:
-        if attempt <= max_attempts:
-            return do_geocode(address, attempt=attempt+1)
-        raise Exception("Too many searches")
-
 @st.cache_data
 def search_place(address):
     if not address:
         return None
-    location = do_geocode(address)
-
-    return (location.latitude, location.longitude)
+    location = worker_address_searcher.search_address(address)
+    return location
 
 @st.cache_data
 def catalog_search(stac_url, geometry, date_string, max_cloud_cover, satellite_sensor, platforms):
@@ -80,7 +63,8 @@ def mosaic_render(stac_list, geojson_geometry, satellite_params):
         "zip_file": True,
         "image_format": "PNG",
         "geojson_geometry": geojson_geometry,
-        "stac_list": stac_list
+        "stac_list": stac_list,
+        "image_as_array":True
     })
 
     with EnvContextManager(

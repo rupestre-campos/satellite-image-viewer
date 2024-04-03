@@ -9,12 +9,14 @@ class AppConfig:
         self.esri_basemap = os.getenv("ESRI_BASEMAP", "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}")
         self.buffer_width = int(os.getenv("BUFFER_WIDTH", "3000"))
         self.email = os.getenv("EMAIL_NOMINATIM", "test-satellite-viewer@null.com")
+        self.geocoder_user_agent = f"satellite-image-viewer+{self.email}"
         self.default_start_address = os.getenv("DEFAULT_START_ADDRESS", "Ingaí MG")
         self.enable_sentinel = os.getenv("ENABLE_SENTINEL", "True").lower() in ('true', '1', 't')
         self.enable_landsat = os.getenv("ENABLE_LANDSAT", "True").lower() in ('true', '1', 't')
         self.satelites = self.__get_satellites_params()
         self.default_cloud_cover = float(os.getenv("DEFAULT_CLOUD_COVER", "30.0"))
         self.default_satellite_choice_index = int(os.getenv("DEFAULT_SATELLITE_CHOICE_INDEX", "0"))
+
 
     def __get_satellites_params(self):
         params = {}
