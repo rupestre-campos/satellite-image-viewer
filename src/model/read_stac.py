@@ -52,23 +52,6 @@ class ReadSTAC:
 
         return zip_buffer.getvalue()
 
-    @staticmethod
-    def __set_env_vars_read_s3(params):
-        os.environ["AWS_ACCESS_KEY_ID"] = params.get("aws_access_key_id","")
-        os.environ["AWS_SECRET_ACCESS_KEY"] = params.get("aws_secret_access_key","")
-        os.environ["AWS_NO_SIGN_REQUESTS"] = params.get("aws_no_sign_requests","NO")
-        os.environ["AWS_REQUEST_PAYER"] = params.get("aws_request_payer","provider")
-        os.environ["AWS_REGION"] = params.get("aws_region_name","")
-
-    @staticmethod
-    def __unset_env_vars_read_s3():
-        os.environ["AWS_ACCESS_KEY_ID"] = ""
-        os.environ["AWS_SECRET_ACCESS_KEY"] = ""
-        os.environ["AWS_NO_SIGN_REQUESTS"] = "NO"
-        os.environ["AWS_REQUEST_PAYER"] = "provider"
-        os.environ["AWS_REGION"] = ""
-
-
     def render_mosaic_from_stac(self, params):
         args = (params.get("geojson_geometry"), )
         kwargs = {
@@ -79,9 +62,7 @@ class ReadSTAC:
         if params.get("image_format") not in self.formats:
             raise ValueError("Format not accepted")
 
-        self.__set_env_vars_read_s3(params)
         image_data, assets_used = mosaic_reader(params.get("stac_list"), self.__tiler, *args, **kwargs)
-        self.__unset_env_vars_read_s3()
         image = image_data.post_process(
             in_range=((params.get("min_value"), params.get("max_value")),),
             color_formula=params.get("color_formula"),

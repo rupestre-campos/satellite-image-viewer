@@ -7,6 +7,7 @@ from app_config import AppConfig
 from view.web_map import WebMap
 from controller.image_renderer import ImageRenderer
 from controller.catalog_searcher import CatalogSearcher
+from controller.environment_variable_manager import EnvContextManager
 from datetime import datetime, timedelta
 from shapely.geometry import shape
 from shapely.ops import transform
@@ -71,6 +72,7 @@ def catalog_search(stac_url, geometry, date_string, max_cloud_cover, satellite_s
     )
     return catalog_worker.search_images()
 
+
 @st.cache_data
 def mosaic_render(stac_list, geojson_geometry, satellite_params):
     params = satellite_params.copy()
@@ -81,7 +83,15 @@ def mosaic_render(stac_list, geojson_geometry, satellite_params):
         "stac_list": stac_list
     })
 
-    image_data = renderer.render_mosaic_from_stac(params)
+    with EnvContextManager(
+        AWS_ACCESS_KEY_ID = params.get("aws_access_key_id",""),
+        AWS_SECRET_ACCESS_KEY = params.get("aws_secret_access_key",""),
+        AWS_NO_SIGN_REQUESTS = params.get("aws_no_sign_requests","NO"),
+        AWS_REQUEST_PAYER = params.get("aws_request_payer","provider"),
+        AWS_REGION = params.get("aws_region_name","")
+    ):
+        image_data = renderer.render_mosaic_from_stac(params)
+
     image_read = io.BytesIO(image_data["image"])
     image_read = Image.open(image_read)
     image_data["image"] = np.asarray(image_read)
