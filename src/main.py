@@ -1,7 +1,3 @@
-import io
-from PIL import Image
-
-import numpy as np
 import streamlit as st
 
 from app_config import AppConfig
@@ -10,7 +6,7 @@ from controller.image_renderer import ImageRenderer
 from controller.catalog_searcher import CatalogSearcher
 from controller.address_searcher import AddressSearcher
 from controller.point_bufferer import PointBufferer
-from controller.environment_variable_manager import EnvContextManager
+
 from datetime import datetime, timedelta
 
 app_config_data = AppConfig()
@@ -20,7 +16,7 @@ st.set_page_config(
     page_icon=":satellite:",
     layout="wide",
 )
-renderer = ImageRenderer()
+worker_image_renderer = ImageRenderer()
 worker_point_bufferer = PointBufferer()
 worker_address_searcher = AddressSearcher(
     user_agent=app_config_data.geocoder_user_agent
@@ -49,7 +45,6 @@ def catalog_search(stac_url, geometry, date_string, max_cloud_cover, satellite_s
     )
     return catalog_worker.search_images()
 
-
 @st.cache_data
 def mosaic_render(stac_list, geojson_geometry, satellite_params):
     params = satellite_params.copy()
@@ -58,28 +53,15 @@ def mosaic_render(stac_list, geojson_geometry, satellite_params):
         "image_format": "PNG",
         "geojson_geometry": geojson_geometry,
         "stac_list": stac_list,
-        "image_as_array":True
+        "image_as_array": True
     })
 
-    with EnvContextManager(
-        AWS_ACCESS_KEY_ID = params.get("aws_access_key_id",""),
-        AWS_SECRET_ACCESS_KEY = params.get("aws_secret_access_key",""),
-        AWS_NO_SIGN_REQUESTS = params.get("aws_no_sign_requests","NO"),
-        AWS_REQUEST_PAYER = params.get("aws_request_payer","provider"),
-        AWS_REGION = params.get("aws_region_name","")
-    ):
-        image_data = renderer.render_mosaic_from_stac(params)
-
-    image_read = io.BytesIO(image_data["image"])
-    image_read = Image.open(image_read)
-    image_data["image"] = np.asarray(image_read)
-
+    image_data = worker_image_renderer.render_mosaic_from_stac(params)
     return image_data
-
 
 def create_download_zip_button(zip_file, name):
     zip_name = name[:128].replace(',','-')
-    btn = st.download_button(
+    st.download_button(
         label="Download data",
         data = zip_file,
         file_name = f"{zip_name}.zip",
@@ -139,7 +121,6 @@ def main():
     st.write("Search where to go below or drop a pin on map to get fresh images")
     address_to_search = st.text_input("Search location", value=app_config_data.default_start_address)
 
-
     satellite_sensor = st.radio(
         "Satellite",
         options=sorted(list(app_config_data.satelites.keys())),
@@ -148,10 +129,15 @@ def main():
     satellite_sensor_params = app_config_data.satelites.get(satellite_sensor)
 
     col1, col2 = st.columns(2)
-
     with col1:
-        st.session_state["start_date"] = datetime.strptime(satellite_sensor_params.get("start_date"), "%Y-%m-%d")
-        st.session_state["end_date"] = datetime.strptime(satellite_sensor_params.get("end_date"), "%Y-%m-%d")
+        st.session_state["start_date"] = datetime.strptime(
+            satellite_sensor_params.get("start_date"),
+            "%Y-%m-%d"
+        )
+        st.session_state["end_date"] = datetime.strptime(
+            satellite_sensor_params.get("end_date"),
+            "%Y-%m-%d"
+        )
         selected_dates = st.slider(
             "Select a date range",
             min_value=st.session_state["start_date"],

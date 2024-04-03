@@ -1,10 +1,11 @@
-from rasterio import warp
-from rio_tiler.io import STACReader
-from rio_tiler.mosaic import mosaic_reader
 import io
 import zipfile
 import json
-import os
+from PIL import Image
+import numpy as np
+from rasterio import warp
+from rio_tiler.io import STACReader
+from rio_tiler.mosaic import mosaic_reader
 
 class ReadSTAC:
     def __init__(self):
@@ -15,6 +16,12 @@ class ReadSTAC:
     def __tiler( item, *args, **kwargs):
         with STACReader(None, item=item) as stac:
             return stac.feature(*args,**kwargs)
+
+    @staticmethod
+    def __image_as_array(image):
+        image = io.BytesIO(image)
+        image = Image.open(image)
+        return np.asarray(image)
 
     def __get_image_bounds(self, image):
         left, bottom, right, top = [i for i in image.bounds]
@@ -69,6 +76,9 @@ class ReadSTAC:
         )
         image = image.render(img_format=params.get("image_format"))
         image_bounds = self.__get_image_bounds(image_data)
+
+        if params.get("image_as_array"):
+            image = self.__image_as_array(image)
 
         world_file = self.__get_world_file_content(image_bounds, image_data)
         if params.get("zip_file"):
