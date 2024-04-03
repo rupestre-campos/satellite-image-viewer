@@ -13,9 +13,9 @@ class ReadSTAC:
         self.formats = {"PNG":"PGW", "JPEG":"JGW"}
 
     @staticmethod
-    def __tiler( item, *args, **kwargs):
+    def __tiler(item, *args, **kwargs):
         with STACReader(None, item=item) as stac:
-            return stac.feature(*args,**kwargs)
+            return stac.feature(*args, **kwargs)
 
     @staticmethod
     def __image_as_array(image):

@@ -16,7 +16,7 @@ class AppConfig:
         self.satelites = self.__get_satellites_params()
         self.default_cloud_cover = float(os.getenv("DEFAULT_CLOUD_COVER", "30.0"))
         self.default_satellite_choice_index = int(os.getenv("DEFAULT_SATELLITE_CHOICE_INDEX", "0"))
-
+        self.max_stac_items = int(os.getenv("MAX_STAC_ITEMS", "5"))
 
     def __get_satellites_params(self):
         params = {}

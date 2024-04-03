@@ -16,6 +16,7 @@ st.set_page_config(
     page_icon=":satellite:",
     layout="wide",
 )
+worker_catalog_searcher = CatalogSearcher(app_config_data.stac_url)
 worker_image_renderer = ImageRenderer()
 worker_point_bufferer = PointBufferer()
 worker_address_searcher = AddressSearcher(
@@ -34,16 +35,17 @@ def search_place(address):
     return location
 
 @st.cache_data
-def catalog_search(stac_url, geometry, date_string, max_cloud_cover, satellite_sensor, platforms):
-    catalog_worker = CatalogSearcher(
-        stac_url,
-        feature_geojson=geometry,
-        date_string=date_string,
-        max_cloud_cover=max_cloud_cover,
-        collection=satellite_sensor,
-        platforms=platforms
-    )
-    return catalog_worker.search_images()
+def catalog_search(max_items, feature_geojson, date_string, max_cloud_cover, collection, platforms):
+    params = {
+        "feature_geojson": feature_geojson,
+        "date_string": date_string,
+        "max_cloud_cover": max_cloud_cover,
+        "max_items": max_items,
+        "collection": collection,
+        "platforms": platforms
+    }
+
+    return worker_catalog_searcher.search_images(params)
 
 @st.cache_data
 def mosaic_render(stac_list, geojson_geometry, satellite_params):
@@ -173,7 +175,7 @@ def main():
             )
 
     stac_items = catalog_search(
-        app_config_data.stac_url,
+        app_config_data.max_stac_items,
         st.session_state["geometry"],
         date_string,
         max_cloud_percent,
