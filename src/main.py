@@ -20,7 +20,9 @@ worker_catalog_searcher = CatalogSearcher(app_config_data.stac_url)
 worker_image_renderer = ImageRenderer()
 worker_point_bufferer = PointBufferer()
 worker_address_searcher = AddressSearcher(
-    user_agent=app_config_data.geocoder_user_agent
+    api_url=app_config_data.geocoder_url,
+    api_key=app_config_data.geocoder_api_key
+
 )
 
 @st.cache_data
