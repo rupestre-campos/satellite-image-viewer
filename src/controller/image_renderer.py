@@ -10,17 +10,7 @@ class ImageRenderer:
     def __model_read_stac():
         return ReadSTAC()
 
-    @staticmethod
-    def __geojson_geometry_to_feature(geojson_geometry):
-        return {
-            "type": "Feature",
-            "properties": {},
-            "geometry": geojson_geometry
-        }
-
     def render_mosaic_from_stac(self, params):
-        geojson_geometry = params.get("geojson_geometry", {})
-        params.update({"geojson_geometry": self.__geojson_geometry_to_feature(geojson_geometry)})
         with EnvContextManager(
             AWS_ACCESS_KEY_ID = params.get("aws_access_key_id",""),
             AWS_SECRET_ACCESS_KEY = params.get("aws_secret_access_key",""),

@@ -60,7 +60,7 @@ class ReadSTAC:
         return zip_buffer.getvalue()
 
     def render_mosaic_from_stac(self, params):
-        args = (params.get("geojson_geometry"), )
+        args = (params.get("feature_geojson"), )
         kwargs = {
             "assets":  params.get("assets"),
             "max_size": params.get("max_size"),
@@ -69,26 +69,29 @@ class ReadSTAC:
         if params.get("image_format") not in self.formats:
             raise ValueError("Format not accepted")
 
-        image_data, assets_used = mosaic_reader(params.get("stac_list"), self.__tiler, *args, **kwargs)
+        image_data, assets_used = mosaic_reader(
+            params.get("stac_list"), self.__tiler, *args, **kwargs)
         image = image_data.post_process(
             in_range=((params.get("min_value"), params.get("max_value")),),
             color_formula=params.get("color_formula"),
         )
         image = image.render(img_format=params.get("image_format"))
         image_bounds = self.__get_image_bounds(image_data)
-
-        if params.get("image_as_array"):
-            image = self.__image_as_array(image)
-
         world_file = self.__get_world_file_content(image_bounds, image_data)
+
         if params.get("zip_file"):
             zip_file = self.__create_zip_geoimage(
                 image,
                 world_file,
                 params.get("image_format"),
-                params.get("geojson_geometry"),
+                params.get("feature_geojson"),
                 assets_used
             )
+
+        if params.get("image_as_array"):
+            image = self.__image_as_array(image)
+
+        if params.get("zip_file"):
             return {
                 "image": image,
                 "bounds": image_bounds,

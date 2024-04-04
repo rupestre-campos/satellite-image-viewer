@@ -55,7 +55,7 @@ def sample_image_zip():
         zip_file.writestr("image.png", image_bytes_io.getvalue())
         return zip_buffer.getvalue()
 
-def test_init_read_stac(feature_geojson):
+def test_init_read_stac():
     stac_reader = ReadSTAC()
     assert isinstance(stac_reader, ReadSTAC)
 
@@ -64,7 +64,7 @@ def test_render_mosaic(stac_item, feature_geojson, sample_image):
     stac_list=[stac_item for i in range(2)]
     stac_reader = ReadSTAC()
     params = {
-            "geojson_geometry": feature_geojson,
+            "feature_geojson": feature_geojson,
             "stac_list": stac_list,
             "image_format": image_format,
             "assets":("red", "green", "blue"),
@@ -82,7 +82,7 @@ def test_render_mosaic_jpeg(stac_item, feature_geojson, sample_image_jpeg):
     stac_list=[stac_item for i in range(2)]
     stac_reader = ReadSTAC()
     params = {
-            "geojson_geometry": feature_geojson,
+            "feature_geojson": feature_geojson,
             "stac_list": stac_list,
             "image_format": image_format,
             "assets":("red", "green", "blue"),
@@ -95,12 +95,12 @@ def test_render_mosaic_jpeg(stac_item, feature_geojson, sample_image_jpeg):
     assert isinstance(image_data["bounds"], list)
     assert isinstance(image_data["projection_file"], str)
 
-def test_render_mosaic_format_error(stac_item, feature_geojson, sample_image):
+def test_render_mosaic_format_error(stac_item, feature_geojson):
     image_format = "GNP"
     stac_list=[stac_item for i in range(2)]
     stac_reader = ReadSTAC()
     params = {
-            "geojson_geometry": feature_geojson,
+            "feature_geojson": feature_geojson,
             "stac_list": stac_list,
             "image_format": image_format,
     }
@@ -112,7 +112,7 @@ def test_render_mosaic_zip(stac_item, feature_geojson, sample_image_zip):
     stac_list=[stac_item for i in range(2)]
     stac_reader = ReadSTAC()
     params = {
-            "geojson_geometry": feature_geojson,
+            "feature_geojson": feature_geojson,
             "stac_list": stac_list,
             "image_format": image_format,
             "zip_file": True,
@@ -129,7 +129,7 @@ def test_render_mosaic_image_array(stac_item, feature_geojson, sample_image_arra
     stac_list=[stac_item for i in range(2)]
     stac_reader = ReadSTAC()
     params = {
-            "geojson_geometry": feature_geojson,
+            "feature_geojson": feature_geojson,
             "stac_list": stac_list,
             "image_format": image_format,
             "assets":("red", "green", "blue"),

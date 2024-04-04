@@ -17,6 +17,8 @@ class AppConfig:
         self.default_cloud_cover = float(os.getenv("DEFAULT_CLOUD_COVER", "30.0"))
         self.default_satellite_choice_index = int(os.getenv("DEFAULT_SATELLITE_CHOICE_INDEX", "0"))
         self.max_stac_items = int(os.getenv("MAX_STAC_ITEMS", "5"))
+        self.gif_default_time_per_image = float(os.getenv("GIF_DEFAULT_TIME_PER_IMAGE", 0.15))
+        self.gif_default_day_interval = int(os.getenv("GIF_DEFAULT_DAY_INTERVAL", "180"))
 
     def __get_satellites_params(self):
         params = {}
