@@ -1,5 +1,4 @@
 from pystac_client import Client
-from memoization import cached
 
 
 class SearchSTAC:
@@ -16,6 +15,5 @@ class SearchSTAC:
             **kwargs
         ).item_collection()
 
-    @cached(order_independent=True, max_size=100)
     def get_items(self, **kwargs):
         return [item.to_dict() for item in self.__get_items(**kwargs)]
