@@ -16,6 +16,6 @@ class SearchSTAC:
             **kwargs
         ).item_collection()
 
-    @cached(order_independent=True)
+    @cached(order_independent=True, max_size=100)
     def get_items(self, **kwargs):
         return [item.to_dict() for item in self.__get_items(**kwargs)]

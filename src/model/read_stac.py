@@ -61,7 +61,7 @@ class ReadSTAC:
 
         return zip_buffer.getvalue()
 
-    @cached(order_independent=True)
+    @cached(order_independent=True, max_size=128)
     def render_mosaic_from_stac(self, params):
         args = (params.get("feature_geojson"), )
         kwargs = {

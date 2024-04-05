@@ -5,6 +5,21 @@ import json
 import numpy as np
 from model.read_stac import ReadSTAC
 import zipfile
+import os
+
+os.environ["GDAL_CACHEMAX"] = "200"
+os.environ["GDAL_DISABLE_READDIR_ON_OPEN"] = "EMPTY_DIR"
+os.environ["GDAL_HTTP_MULTIPLEX"] = "YES"
+os.environ["GDAL_HTTP_MERGE_CONSECUTIVE_RANGES"] = "YES"
+os.environ["GDAL_BAND_BLOCK_CACHE"] = "HASHSET"
+os.environ["GDAL_HTTP_MAX_RETRY"] = "4"
+os.environ["GDAL_HTTP_RETRY_DELAY"] = "0.42"
+os.environ["GDAL_HTTP_VERSION"] = "2"
+os.environ["CPL_VSIL_CURL_ALLOWED_EXTENSIONS"] = ".tif,.TIF,.tiff"
+os.environ["CPL_VSIL_CURL_CACHE_SIZE"] = "200000000"
+os.environ["VSI_CACHE"] = "TRUE"
+os.environ["VSI_CACHE_SIZE"] = "5000000"
+os.environ["PROJ_NETWORK"] = "OFF"
 
 @pytest.fixture
 def stac_item():
