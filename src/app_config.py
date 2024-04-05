@@ -8,8 +8,8 @@ class AppConfig:
         self.google_basemap = os.getenv("GOOGLE_BASEMAP", "https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}")
         self.esri_basemap = os.getenv("ESRI_BASEMAP", "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}")
         self.buffer_width = int(os.getenv("BUFFER_WIDTH", "3000"))
-        self.email = os.getenv("EMAIL_NOMINATIM", "test-satellite-viewer@null.com")
-        self.geocoder_user_agent = f"satellite-image-viewer+{self.email}"
+        self.geocoder_url = os.getenv("GEOCODER_API_URL", "https://geocode.maps.co/search")
+        self.geocoder_api_key = os.getenv("GEOCODER_API_KEY", "abcd")
         self.default_start_address = os.getenv("DEFAULT_START_ADDRESS", "Ingaí MG")
         self.enable_sentinel = os.getenv("ENABLE_SENTINEL", "True").lower() in ('true', '1', 't')
         self.enable_landsat = os.getenv("ENABLE_LANDSAT", "True").lower() in ('true', '1', 't')
