@@ -6,7 +6,6 @@ import numpy as np
 from rasterio import warp
 from rio_tiler.io import STACReader
 from rio_tiler.mosaic import mosaic_reader
-from memoization import cached
 
 
 class ReadSTAC:
@@ -61,7 +60,6 @@ class ReadSTAC:
 
         return zip_buffer.getvalue()
 
-    @cached(order_independent=True, max_size=128)
     def render_mosaic_from_stac(self, params):
         args = (params.get("feature_geojson"), )
         kwargs = {
