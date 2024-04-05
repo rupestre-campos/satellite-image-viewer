@@ -49,8 +49,14 @@ def create_gif(
     satellite_params,
     time_per_image,
     period_time_break,
-    width
+    width,
+    view_params
     ):
+    satellite_view_params = satellite_params.copy()
+    satellite_view_params.pop("assets")
+    satellite_view_params.pop("expression")
+    satellite_view_params.update(view_params)
+
     params = {
         "feature_geojson": feature_geojson,
         "date_string": date_string,
@@ -60,10 +66,10 @@ def create_gif(
         "height": width,
         "image_search":{
             "max_cloud_cover": max_cloud_cover,
-            "collection": satellite_params["collection_name"],
-            "platforms": satellite_params["platforms"]
+            "collection": satellite_view_params["collection_name"],
+            "platforms": satellite_view_params["platforms"]
         },
-        "image_render": satellite_params
+        "image_render": satellite_view_params
     }
     result = worker_animation_creator.create_gif(params)
     return result
@@ -82,7 +88,7 @@ def catalog_search(max_items, feature_geojson, date_string, max_cloud_cover, col
     return worker_catalog_searcher.search_images(params)
 
 @st.cache_data
-def mosaic_render(stac_list, feature_geojson, satellite_params, view_param):
+def mosaic_render(stac_list, feature_geojson, satellite_params, view_params):
     params = satellite_params.copy()
     params.update({
         "zip_file": True,
@@ -93,7 +99,7 @@ def mosaic_render(stac_list, feature_geojson, satellite_params, view_param):
     })
     params.pop("assets")
     params.pop("expression")
-    params.update(view_param)
+    params.update(view_params)
 
     image_data = worker_image_renderer.render_mosaic_from_stac(params)
     return image_data
@@ -175,70 +181,113 @@ def main():
         value=app_config_data.default_start_address,
         placeholder="Drake Park Bend OR"
     )
-    col1, col2 = st.columns(2)
-    with col1:
-        col3, col4 = st.columns(2)
-        with col3:
-            satellite_sensor = st.radio(
-                "Satellite",
-                options=sorted(list(app_config_data.satelites.keys())),
-                index=app_config_data.default_satellite_choice_index
+    with st.expander("options"):
+        col1, col2 = st.columns(2)
+        with col1:
+            col3, col4 = st.columns(2)
+            with col3:
+                satellite_sensor = st.radio(
+                    "Satellite",
+                    options=sorted(list(app_config_data.satelites.keys())),
+                    index=app_config_data.default_satellite_choice_index
+                )
+                satellite_sensor_params = app_config_data.satelites.get(satellite_sensor)
+            with col4:
+                view_mode = st.radio(
+                    "Select image composition",
+                    options=["assets", "expression"],
+                    index=0
+                )
+
+                selected_bands = st.selectbox(
+                    "options",
+                    options=sorted(satellite_sensor_params[view_mode].keys()),
+                    index=0
+                )
+
+                view_param = {view_mode: satellite_sensor_params[view_mode][selected_bands]}
+
+        with col2:
+            max_cloud_percent = st.slider(
+                "Maximum cloud cover (%)",
+                min_value=0.0,
+                max_value=100.0,
+                value=app_config_data.default_cloud_cover,
+                step=0.5
             )
-            satellite_sensor_params = app_config_data.satelites.get(satellite_sensor)
-        with col4:
-            view_mode = st.radio(
-                "Select image composition",
-                options=["assets", "expression"],
-                index=0
+        col1, col2 = st.columns(2)
+        with col1:
+            st.session_state["start_date"] = datetime.strptime(
+                satellite_sensor_params.get("start_date"),
+                "%Y-%m-%d"
+            )
+            st.session_state["end_date"] = datetime.strptime(
+                satellite_sensor_params.get("end_date"),
+                "%Y-%m-%d"
+            )
+            selected_dates = st.slider(
+                "Select a date range",
+                min_value=st.session_state["start_date"],
+                max_value=st.session_state["end_date"],
+                value=st.session_state["data_range_values"],
+                step=timedelta(days=1),
+                format="YYYY-MM-DD"
             )
 
-            selected_bands = st.selectbox(
-                "options",
-                options=sorted(satellite_sensor_params[view_mode].keys()),
-                index=0
+            st.session_state["data_range_values"] = selected_dates
+            date_string = create_datestring_from_selected_dates(selected_dates)
+
+        with col2:
+            point_buffer_width = st.slider(
+                "Point buffer distance (m)",
+                min_value=50,
+                max_value=app_config_data.buffer_width,
+                value=app_config_data.buffer_width,
             )
+        col1, col2 = st.columns(2)
+        with col1:
+            create_gif_button = False
+            gif_check_box = False
+            if satellite_sensor_params["name"].lower() in app_config_data.allowed_gif_satellite:
+                gif_check_box = st.checkbox("Create GIF", value=False)
+            if gif_check_box:
+                time_per_image = st.slider(
+                    "Time per image (s)",
+                    min_value=0.01,
+                    max_value=3.0,
+                    step=0.01,
+                    value=app_config_data.gif_default_time_per_image
+                )
+                period_time_break = st.slider(
+                    "Day interval",
+                    min_value=30,
+                    max_value=365,
+                    value=app_config_data.gif_default_day_interval
+                )
 
-            view_param = {view_mode: satellite_sensor_params[view_mode][selected_bands]}
+                image_size = st.slider(
+                    "Image size (pixels)",
+                    min_value=100,
+                    max_value=512,
+                    value=320
+                )
 
-    with col2:
-        max_cloud_percent = st.slider(
-            "Maximum cloud cover (%)",
-            min_value=0.0,
-            max_value=100.0,
-            value=app_config_data.default_cloud_cover,
-            step=0.5
-        )
-    col1, col2 = st.columns(2)
-    with col1:
+                with col2:
+                    create_gif_button = st.button("Render GIF")
+                    if create_gif_button:
+                        result_gif_image = create_gif(
+                            feature_geojson=st.session_state["geometry"],
+                            date_string=date_string,
+                            max_cloud_cover=max_cloud_percent,
+                            satellite_params=satellite_sensor_params,
+                            time_per_image=time_per_image,
+                            period_time_break=period_time_break,
+                            width=image_size,
+                            view_params=view_param
+                        )
+                        st.session_state["result_gif_image"] = result_gif_image
+                        result_gif_image = None
 
-        st.session_state["start_date"] = datetime.strptime(
-            satellite_sensor_params.get("start_date"),
-            "%Y-%m-%d"
-        )
-        st.session_state["end_date"] = datetime.strptime(
-            satellite_sensor_params.get("end_date"),
-            "%Y-%m-%d"
-        )
-        selected_dates = st.slider(
-            "Select a date range",
-            min_value=st.session_state["start_date"],
-            max_value=st.session_state["end_date"],
-            value=st.session_state["data_range_values"],
-            step=timedelta(days=1),
-            format="YYYY-MM-DD"
-        )
-
-        st.session_state["data_range_values"] = selected_dates
-        date_string = create_datestring_from_selected_dates(selected_dates)
-
-    with col2:
-
-        point_buffer_width = st.slider(
-            "Point buffer distance (m)",
-            min_value=50,
-            max_value=app_config_data.buffer_width,
-            value=app_config_data.buffer_width,
-        )
 
     warning_area_user_input_location = st.empty()
     warning_area_user_input = st.empty()
@@ -269,7 +318,7 @@ def main():
         satellite_sensor_params["collection_name"],
         satellite_sensor_params["platforms"]
     )
-    col1, col2, col3 = st.columns(3)
+    col1, col2 = st.columns(2)
     if len(stac_items) == 0:
         warning_area_user_input.write(f":red[Search returned no results, change date or max cloud cover]")
     if len(stac_items) > 0:
@@ -294,47 +343,6 @@ def main():
 
         web_map.add_polygon(st.session_state["geometry"])
     with col2:
-        create_gif_button = False
-        gif_check_box = False
-        if satellite_sensor_params["name"].lower() in app_config_data.allowed_gif_satellite:
-            gif_check_box = st.checkbox("Create GIF", value=False)
-        if gif_check_box:
-            create_gif_button = st.button("Render GIF")
-            with st.expander("config"):
-                time_per_image = st.slider(
-                    "Time per image (s)",
-                    min_value=0.01,
-                    max_value=3.0,
-                    step=0.01,
-                    value=app_config_data.gif_default_time_per_image
-                )
-                period_time_break = st.slider(
-                    "Day interval",
-                    min_value=30,
-                    max_value=365,
-                    value=app_config_data.gif_default_day_interval
-                )
-
-                image_size = st.slider(
-                    "Image size (pixels)",
-                    min_value=100,
-                    max_value=512,
-                    value=320
-                )
-
-    with col3:
-        if create_gif_button:
-            result_gif_image = create_gif(
-                feature_geojson=st.session_state["geometry"],
-                date_string=date_string,
-                max_cloud_cover=max_cloud_percent,
-                satellite_params=satellite_sensor_params,
-                time_per_image=time_per_image,
-                period_time_break=period_time_break,
-                width=image_size
-            )
-            st.session_state["result_gif_image"] = result_gif_image
-            result_gif_image = None
         if st.session_state["result_gif_image"]:
             create_download_gif_button(st.session_state["result_gif_image"])
     web_map.add_layer_control()
