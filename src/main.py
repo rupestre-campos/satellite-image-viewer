@@ -276,7 +276,7 @@ def main():
         if gif_check_box:
             create_gif_button = st.button("Render GIF")
             with st.expander("config"):
-                time_per_image = st.number_input(
+                time_per_image = st.slider(
                     "Time per image (s)",
                     min_value=0.01,
                     max_value=3.0,
@@ -297,22 +297,19 @@ def main():
                     value=320
                 )
 
-
-
     with col3:
         if create_gif_button:
-            with st.spinner("Working on it... wait"):
-                result_gif_image = create_gif(
-                    feature_geojson=st.session_state["geometry"],
-                    date_string=date_string,
-                    max_cloud_cover=max_cloud_percent,
-                    satellite_params=satellite_sensor_params,
-                    time_per_image=time_per_image,
-                    period_time_break=period_time_break,
-                    width=image_size
-                )
-                st.session_state["result_gif_image"] = result_gif_image
-                result_gif_image = None
+            result_gif_image = create_gif(
+                feature_geojson=st.session_state["geometry"],
+                date_string=date_string,
+                max_cloud_cover=max_cloud_percent,
+                satellite_params=satellite_sensor_params,
+                time_per_image=time_per_image,
+                period_time_break=period_time_break,
+                width=image_size
+            )
+            st.session_state["result_gif_image"] = result_gif_image
+            result_gif_image = None
         if st.session_state["result_gif_image"]:
             create_download_gif_button(st.session_state["result_gif_image"])
     web_map.add_layer_control()
