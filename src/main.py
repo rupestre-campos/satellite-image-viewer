@@ -29,6 +29,17 @@ worker_animation_creator = AnimationCreator(
     image_renderer=worker_image_renderer
 )
 
+assets_mapping = {
+    "Sentinel 2": {
+        "RGB": ("red", "green", "blue"),
+        "NirRG": ("nir", "red", "blue")
+    },
+    "Landsat": {
+        "RGB": ("red", "green", "blue"),
+        "NirRG": ("nir08", "red", "blue")
+    },
+
+}
 
 @st.cache_data
 def buffer_point(latitude, longitude, distance):
@@ -82,14 +93,15 @@ def catalog_search(max_items, feature_geojson, date_string, max_cloud_cover, col
     return worker_catalog_searcher.search_images(params)
 
 @st.cache_data
-def mosaic_render(stac_list, feature_geojson, satellite_params):
+def mosaic_render(stac_list, feature_geojson, satellite_params, assets):
     params = satellite_params.copy()
     params.update({
         "zip_file": True,
         "image_format": "PNG",
         "feature_geojson": feature_geojson,
         "stac_list": stac_list,
-        "image_as_array": True
+        "image_as_array": True,
+        "assets": assets
     })
 
     image_data = worker_image_renderer.render_mosaic_from_stac(params)
@@ -174,12 +186,21 @@ def main():
     )
     col1, col2 = st.columns(2)
     with col1:
-        satellite_sensor = st.radio(
-            "Satellite",
-            options=sorted(list(app_config_data.satelites.keys())),
-            index=app_config_data.default_satellite_choice_index
-        )
-        satellite_sensor_params = app_config_data.satelites.get(satellite_sensor)
+        col3, col4 = st.columns(2)
+        with col3:
+            satellite_sensor = st.radio(
+                "Satellite",
+                options=sorted(list(app_config_data.satelites.keys())),
+                index=app_config_data.default_satellite_choice_index
+            )
+            satellite_sensor_params = app_config_data.satelites.get(satellite_sensor)
+        with col4:
+            selected_assets = st.radio(
+                "Select band composition",
+                options=["RGB", "NirRG"],
+                index=0
+                )
+            assets = assets_mapping[satellite_sensor][selected_assets]
     with col2:
         max_cloud_percent = st.slider(
             "Maximum cloud cover (%)",
@@ -253,7 +274,12 @@ def main():
     if len(stac_items) == 0:
         warning_area_user_input.write(f":red[Search returned no results, change date or max cloud cover]")
     if len(stac_items) > 0:
-        image_data = mosaic_render(stac_items, st.session_state["geometry"], satellite_sensor_params)
+        image_data = mosaic_render(
+            stac_items,
+            st.session_state["geometry"],
+            satellite_sensor_params,
+            assets
+        )
 
         st.write(f'Image ID: {image_data["name"]}')
 
