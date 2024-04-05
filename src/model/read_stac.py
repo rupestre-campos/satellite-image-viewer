@@ -6,6 +6,7 @@ import numpy as np
 from rasterio import warp
 from rio_tiler.io import STACReader
 from rio_tiler.mosaic import mosaic_reader
+from rio_tiler.colormap import cmap
 
 
 class ReadSTAC:
@@ -60,23 +61,47 @@ class ReadSTAC:
 
         return zip_buffer.getvalue()
 
+    def __post_process_image(self, image_data, params):
+        if params.get("assets"):
+            return image_data.post_process(
+                in_range=((params.get("min_value"), params.get("max_value")),),
+                color_formula=params.get("color_formula"),
+            )
+
+        return image_data.post_process(
+            in_range=((
+                params.get("index_min_value",-1),
+                params.get("index_max_value", 1),
+            ),),
+        )
+
+    def __render_image(self, image, params):
+        if params.get("assets"):
+            return image.render(img_format=params.get("image_format"))
+
+        colormap = cmap.get(params.get("colormap", "viridis"))
+        return image.render(
+            img_format=params.get("image_format"),
+            colormap=colormap
+        )
+
     def render_mosaic_from_stac(self, params):
         args = (params.get("feature_geojson"), )
+        view_params = "assets" if params.get("assets") else "expression"
         kwargs = {
-            "assets":  params.get("assets"),
+            view_params:  params.get(view_params),
             "max_size": params.get("max_size"),
-            "nodata": params.get("nodata")
+            "nodata": params.get("nodata"),
+            "asset_as_band": True
         }
         if params.get("image_format") not in self.formats:
             raise ValueError("Format not accepted")
 
         image_data, assets_used = mosaic_reader(
             params.get("stac_list"), self.__tiler, *args, **kwargs)
-        image = image_data.post_process(
-            in_range=((params.get("min_value"), params.get("max_value")),),
-            color_formula=params.get("color_formula"),
-        )
-        image = image.render(img_format=params.get("image_format"))
+
+        image = self.__post_process_image(image_data, params)
+        image = self.__render_image(image, params)
         image_bounds = self.__get_image_bounds(image_data)
         world_file = self.__get_world_file_content(image_bounds, image_data)
 
