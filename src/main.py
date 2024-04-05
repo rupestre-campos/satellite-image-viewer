@@ -6,7 +6,7 @@ from controller.image_renderer import ImageRenderer
 from controller.catalog_searcher import CatalogSearcher
 from controller.address_searcher import AddressSearcher
 from controller.point_bufferer import PointBufferer
-
+from controller.animation_creator import AnimationCreator
 from datetime import datetime, timedelta
 
 app_config_data = AppConfig()
@@ -24,6 +24,11 @@ worker_address_searcher = AddressSearcher(
     api_key=app_config_data.geocoder_api_key
 
 )
+worker_animation_creator = AnimationCreator(
+    catalog_searcher=worker_catalog_searcher,
+    image_renderer=worker_image_renderer
+)
+
 
 @st.cache_data
 def buffer_point(latitude, longitude, distance):
@@ -35,6 +40,33 @@ def search_place(address):
         return None
     location = worker_address_searcher.search_address(address)
     return location
+
+@st.cache_data
+def create_gif(
+    feature_geojson,
+    date_string,
+    max_cloud_cover,
+    satellite_params,
+    time_per_image,
+    period_time_break,
+    width
+    ):
+    params = {
+        "feature_geojson": feature_geojson,
+        "date_string": date_string,
+        "period_time_break": period_time_break,
+        "time_per_image": time_per_image,
+        "width": width,
+        "height": width,
+        "image_search":{
+            "max_cloud_cover": max_cloud_cover,
+            "collection": satellite_params["collection_name"],
+            "platforms": satellite_params["platforms"]
+        },
+        "image_render": satellite_params
+    }
+    result = worker_animation_creator.create_gif(params)
+    return result
 
 @st.cache_data
 def catalog_search(max_items, feature_geojson, date_string, max_cloud_cover, collection, platforms):
@@ -50,12 +82,12 @@ def catalog_search(max_items, feature_geojson, date_string, max_cloud_cover, col
     return worker_catalog_searcher.search_images(params)
 
 @st.cache_data
-def mosaic_render(stac_list, geojson_geometry, satellite_params):
+def mosaic_render(stac_list, feature_geojson, satellite_params):
     params = satellite_params.copy()
     params.update({
         "zip_file": True,
         "image_format": "PNG",
-        "geojson_geometry": geojson_geometry,
+        "feature_geojson": feature_geojson,
         "stac_list": stac_list,
         "image_as_array": True
     })
@@ -66,10 +98,19 @@ def mosaic_render(stac_list, geojson_geometry, satellite_params):
 def create_download_zip_button(zip_file, name):
     zip_name = name[:128].replace(',','-')
     st.download_button(
-        label="Download data",
+        label="Download Image data",
         data = zip_file,
         file_name = f"{zip_name}.zip",
         mime="application/octet-stream"
+    )
+
+def create_download_gif_button(gif_result):
+    gif_name = f"result-{datetime.now().strftime('%Y%m%dT%H%M%S')}"
+    st.download_button(
+        label="Download GIF",
+        data = gif_result["image"],
+        file_name = f"{gif_name}.gif",
+        mime="image/gif"
     )
 
 def create_datestring_from_selected_dates(selected_dates):
@@ -97,6 +138,7 @@ def parse_location(location):
     }
 
 def startup_session_variables():
+    st.write('<style>div.row-widget.stRadio > div{flex-direction:row;}</style>', unsafe_allow_html=True)
     if "geometry" not in st.session_state:
         st.session_state["geometry"] = {}
     if "user_draw" not in st.session_state:
@@ -111,6 +153,8 @@ def startup_session_variables():
         st.session_state["data_range_values"] = (
             st.session_state["end_date"] - timedelta(days=365),
             st.session_state["end_date"])
+    if not "result_gif_image" in st.session_state:
+        st.session_state["result_gif_image"] = {}
 
 def main():
     startup_session_variables()
@@ -123,17 +167,30 @@ def main():
 
     st.title("Satellite Image Viewer")
     st.write("Search where to go below or drop a pin on map to get fresh images")
-    address_to_search = st.text_input("Search location", value=app_config_data.default_start_address)
-
-    satellite_sensor = st.radio(
-        "Satellite",
-        options=sorted(list(app_config_data.satelites.keys())),
-        index=app_config_data.default_satellite_choice_index
+    address_to_search = st.text_input(
+        "Search address or location",
+        value=app_config_data.default_start_address,
+        placeholder="Drake Park Bend OR"
     )
-    satellite_sensor_params = app_config_data.satelites.get(satellite_sensor)
-
     col1, col2 = st.columns(2)
     with col1:
+        satellite_sensor = st.radio(
+            "Satellite",
+            options=sorted(list(app_config_data.satelites.keys())),
+            index=app_config_data.default_satellite_choice_index
+        )
+        satellite_sensor_params = app_config_data.satelites.get(satellite_sensor)
+    with col2:
+        max_cloud_percent = st.slider(
+            "Maximum cloud cover (%)",
+            min_value=0.0,
+            max_value=100.0,
+            value=app_config_data.default_cloud_cover,
+            step=0.5
+        )
+    col1, col2 = st.columns(2)
+    with col1:
+
         st.session_state["start_date"] = datetime.strptime(
             satellite_sensor_params.get("start_date"),
             "%Y-%m-%d"
@@ -150,16 +207,19 @@ def main():
             step=timedelta(days=1),
             format="YYYY-MM-DD"
         )
+
         st.session_state["data_range_values"] = selected_dates
         date_string = create_datestring_from_selected_dates(selected_dates)
+
     with col2:
-        max_cloud_percent = st.slider(
-            "Maximum cloud cover",
-            min_value=0.0,
-            max_value=100.0,
-            value=app_config_data.default_cloud_cover,
-            step=0.5
+
+        point_buffer_width = st.slider(
+            "Point buffer distance (m)",
+            min_value=50,
+            max_value=app_config_data.buffer_width,
+            value=app_config_data.buffer_width,
         )
+
     warning_area_user_input_location = st.empty()
     warning_area_user_input = st.empty()
 
@@ -170,11 +230,16 @@ def main():
         if parsed_location["warning"]:
             warning_area_user_input_location.write(f":red[Location not found, try different keywords]")
 
-        st.session_state["geometry"] = buffer_point(
+        st.session_state["geometry"] = {
+            "type": "Feature",
+            "properties": {},
+            "geometry": buffer_point(
                 parsed_location["latitude"],
                 parsed_location["longitude"],
-                app_config_data.buffer_width
+                point_buffer_width
             )
+        }
+        st.session_state["result_gif_image"] = {}
 
     stac_items = catalog_search(
         app_config_data.max_stac_items,
@@ -184,7 +249,7 @@ def main():
         satellite_sensor_params["collection_name"],
         satellite_sensor_params["platforms"]
     )
-
+    col1, col2, col3 = st.columns(3)
     if len(stac_items) == 0:
         warning_area_user_input.write(f":red[Search returned no results, change date or max cloud cover]")
     if len(stac_items) > 0:
@@ -192,7 +257,7 @@ def main():
 
         st.write(f'Image ID: {image_data["name"]}')
 
-        col1, col2 = st.columns(2)
+
         with col1:
             create_download_zip_button(image_data["zip_file"], image_data["name"])
 
@@ -203,7 +268,53 @@ def main():
             )
 
         web_map.add_polygon(st.session_state["geometry"])
+    with col2:
+        create_gif_button = False
+        gif_check_box = False
+        if satellite_sensor_params["name"].lower() in app_config_data.allowed_gif_satellite:
+            gif_check_box = st.checkbox("Create GIF", value=False)
+        if gif_check_box:
+            create_gif_button = st.button("Render GIF")
+            with st.expander("config"):
+                time_per_image = st.number_input(
+                    "Time per image (s)",
+                    min_value=0.01,
+                    max_value=3.0,
+                    step=0.01,
+                    value=app_config_data.gif_default_time_per_image
+                )
+                period_time_break = st.slider(
+                    "Day interval",
+                    min_value=30,
+                    max_value=365,
+                    value=app_config_data.gif_default_day_interval
+                )
 
+                image_size = st.slider(
+                    "Image size (pixels)",
+                    min_value=100,
+                    max_value=512,
+                    value=320
+                )
+
+
+
+    with col3:
+        if create_gif_button:
+            with st.spinner("Working on it... wait"):
+                result_gif_image = create_gif(
+                    feature_geojson=st.session_state["geometry"],
+                    date_string=date_string,
+                    max_cloud_cover=max_cloud_percent,
+                    satellite_params=satellite_sensor_params,
+                    time_per_image=time_per_image,
+                    period_time_break=period_time_break,
+                    width=image_size
+                )
+                st.session_state["result_gif_image"] = result_gif_image
+                result_gif_image = None
+        if st.session_state["result_gif_image"]:
+            create_download_gif_button(st.session_state["result_gif_image"])
     web_map.add_layer_control()
     user_draw = web_map.render_web_map()
 
@@ -212,7 +323,16 @@ def main():
         st.session_state["user_draw"] = user_draw["geometry"]
         longitude = user_draw["geometry"]["coordinates"][0]
         latitude = user_draw["geometry"]["coordinates"][1]
-        st.session_state["geometry"] = buffer_point(latitude, longitude, app_config_data.buffer_width)
+        st.session_state["geometry"] = {
+            "type": "Feature",
+            "properties": {},
+            "geometry": buffer_point(
+                latitude,
+                longitude,
+                point_buffer_width
+            )
+        }
+        st.session_state["result_gif_image"] = {}
         st.rerun()
         return
 
@@ -220,7 +340,8 @@ def main():
     st.write("Made with:  STAC API from element84 to search images via pystac")
     st.write("rio_tiller to read and render STAC/COG links into a real image")
     st.write("folium/leaflet for the map and drawing")
-    st.write("Open Street Maps and Nominatim to search addresses and street basemap")
+    st.write("Open Street Maps street basemap")
+    st.write("[geocode](https://geocode.maps.co/) to geocode address into positions")
     st.write("Satellite basemaps from google and esri")
     st.write("streamlit and streamlit cloud solution for UI and hosting")
 

@@ -9,11 +9,13 @@ class CatalogSearcher:
         self.search_stac = SearchSTAC(stac_url=self.stac_url)
 
     def search_images(self, params):
+        feature_geojson = params.get("feature_geojson",{})
+        geometry = feature_geojson.get("geometry")
         kwargs = {
             "datetime": params.get("date_string"),
             "max_items": params.get("max_items"),
             "collections": [params.get("collection")],
-            "intersects": params.get("feature_geojson"),
+            "intersects": geometry,
             "query":{
                 "eo:cloud_cover":{"lte":params.get("max_cloud_cover")},
             }
