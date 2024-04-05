@@ -38,9 +38,12 @@ class AppConfig:
         band_nodata_value = int(os.getenv("SENTINEL_BAND_NODATA_VALUE", 0))
         band_min_value = int(os.getenv("SENTINEL_BAND_MIN_VALUE", 0))
         band_max_value = int(os.getenv("SENTINEL_BAND_MAX_VALUE", 4000))
-        red_channel_asset_name = os.getenv("SENTINEL_R_CHANNEL_ASSET_NAME", "red")
-        green_channel_asset_name = os.getenv("SENTINEL_G_CHANNEL_ASSET_NAME", "green")
-        blue_channel_asset_name = os.getenv("SENTINEL_B_CHANNEL_ASSET_NAME", "blue")
+        index_min_value = int(os.getenv("SENTINEL_INDEX_MIN_VALUE", -1))
+        index_max_value = int(os.getenv("SENTINEL_INDEX_MAX_VALUE", 1))
+        nir = os.getenv("SENTINEL_NIR_CHANNEL_ASSET_NAME", "nir")
+        red = os.getenv("SENTINEL_R_CHANNEL_ASSET_NAME", "red")
+        green = os.getenv("SENTINEL_G_CHANNEL_ASSET_NAME", "green")
+        blue = os.getenv("SENTINEL_B_CHANNEL_ASSET_NAME", "blue")
         color_formula_sigmoidal = os.getenv("SENTINEL_COLOR_FORMULA_SIGMOIDAL", "sigmoidal RGB 6 0.1")
         color_formula_gamma = os.getenv("SENTINEL_COLOR_FORMULA_GAMMA", "gamma G 1.1 gamma B 1.2")
         color_formula_saturation = os.getenv("SENTINEL_COLOR_FORMULA_SATURATION", "saturation 1.2")
@@ -61,11 +64,26 @@ class AppConfig:
             "nodata": band_nodata_value,
             "max_size": image_max_size,
             "platforms": platforms,
-            "assets": (
-                red_channel_asset_name,
-                green_channel_asset_name,
-                blue_channel_asset_name
-            ),
+            "assets": {
+                "real-color (RGB)": (
+                    red,
+                    green,
+                    blue
+                ),
+                "vegetation (NirRG)": (
+                    nir,
+                    red,
+                    green
+                ),
+            },
+            "expression": {
+                "ndvi": f"({nir}-{red})/({nir}+{red})",
+                "ndwi": f"({red}-{nir})/({red}+{nir})",
+                "evi": f"2.5*(({nir}-{red})/(({nir}-6*{red}-7.5*{blue})+1))",
+                "savi": f"(({nir}-{red})/({nir}+{red}+0.5))*1.5"
+            },
+            "index_min_value": index_min_value,
+            "index_max_value": index_max_value,
             "color_formula":f"{color_formula_sigmoidal} {color_formula_gamma} {color_formula_saturation}",
             "aws_access_key_id": aws_access_key_id,
             "aws_secret_access_key": aws_secret_access_key,
@@ -83,9 +101,12 @@ class AppConfig:
         band_nodata_value = int(os.getenv("LANDSAT_BAND_NODATA_VALUE", 0))
         band_min_value = int(os.getenv("LANDSAT_BAND_MIN_VALUE", 7273))
         band_max_value = int(os.getenv("LANDSAT_BAND_MAX_VALUE", 43636))
-        red_channel_asset_name = os.getenv("LANDSAT_R_CHANNEL_ASSET_NAME", "red")
-        green_channel_asset_name = os.getenv("LANDSAT_G_CHANNEL_ASSET_NAME", "green")
-        blue_channel_asset_name = os.getenv("LANDSAT_B_CHANNEL_ASSET_NAME", "blue")
+        index_min_value = int(os.getenv("LANDSAT_INDEX_MIN_VALUE", -1))
+        index_max_value = int(os.getenv("LANDSAT_INDEX_MAX_VALUE", 1))
+        nir = os.getenv("LANDSAT_NIR_CHANNEL_ASSET_NAME", "nir08")
+        red = os.getenv("LANDSAT_R_CHANNEL_ASSET_NAME", "red")
+        green = os.getenv("LANDSAT_G_CHANNEL_ASSET_NAME", "green")
+        blue = os.getenv("LANDSAT_B_CHANNEL_ASSET_NAME", "blue")
         color_formula_sigmoidal = os.getenv("LANDSAT_COLOR_FORMULA_SIGMOIDAL", "sigmoidal RGB 10 0.01")
         color_formula_gamma = os.getenv("LANDSAT_COLOR_FORMULA_GAMMA", "gamma G 1.1 gamma B 1.2")
         color_formula_saturation = os.getenv("LANDSAT_COLOR_FORMULA_SATURATION", "saturation 1.2")
@@ -106,11 +127,26 @@ class AppConfig:
             "nodata": band_nodata_value,
             "max_size": image_max_size,
             "platforms": platforms,
-            "assets": (
-                red_channel_asset_name,
-                green_channel_asset_name,
-                blue_channel_asset_name
-            ),
+            "assets": {
+                "real-color (RGB)": (
+                    red,
+                    green,
+                    blue
+                ),
+                "vegetation (NirRG)": (
+                    nir,
+                    red,
+                    green
+                ),
+            },
+            "expression": {
+                "ndvi": f"({nir}-{red})/({nir}+{red})",
+                "ndwi": f"({red}-{nir})/({red}+{nir})",
+                "evi": f"2.5*(({nir}-{red})/(({nir}-6*{red}-7.5*{blue})+1))",
+                "savi": f"(({nir}-{red})/({nir}+{red}+0.5))*1.5"
+            },
+            "index_min_value": index_min_value,
+            "index_max_value": index_max_value,
             "color_formula":f"{color_formula_sigmoidal} {color_formula_gamma} {color_formula_saturation}",
             "aws_access_key_id": aws_access_key_id,
             "aws_secret_access_key": aws_secret_access_key,

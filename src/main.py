@@ -29,17 +29,6 @@ worker_animation_creator = AnimationCreator(
     image_renderer=worker_image_renderer
 )
 
-assets_mapping = {
-    "Sentinel 2": {
-        "RGB": ("red", "green", "blue"),
-        "NirRG": ("nir", "red", "blue")
-    },
-    "Landsat": {
-        "RGB": ("red", "green", "blue"),
-        "NirRG": ("nir08", "red", "blue")
-    },
-
-}
 
 @st.cache_data
 def buffer_point(latitude, longitude, distance):
@@ -93,7 +82,7 @@ def catalog_search(max_items, feature_geojson, date_string, max_cloud_cover, col
     return worker_catalog_searcher.search_images(params)
 
 @st.cache_data
-def mosaic_render(stac_list, feature_geojson, satellite_params, assets):
+def mosaic_render(stac_list, feature_geojson, satellite_params, view_param):
     params = satellite_params.copy()
     params.update({
         "zip_file": True,
@@ -101,8 +90,10 @@ def mosaic_render(stac_list, feature_geojson, satellite_params, assets):
         "feature_geojson": feature_geojson,
         "stac_list": stac_list,
         "image_as_array": True,
-        "assets": assets
     })
+    params.pop("assets")
+    params.pop("expression")
+    params.update(view_param)
 
     image_data = worker_image_renderer.render_mosaic_from_stac(params)
     return image_data
@@ -195,12 +186,20 @@ def main():
             )
             satellite_sensor_params = app_config_data.satelites.get(satellite_sensor)
         with col4:
-            selected_assets = st.radio(
-                "Select band composition",
-                options=["RGB", "NirRG"],
+            view_mode = st.radio(
+                "Select image composition",
+                options=["assets", "expression"],
                 index=0
-                )
-            assets = assets_mapping[satellite_sensor][selected_assets]
+            )
+
+            selected_bands = st.selectbox(
+                "options",
+                options=sorted(satellite_sensor_params[view_mode].keys()),
+                index=0
+            )
+
+            view_param = {view_mode: satellite_sensor_params[view_mode][selected_bands]}
+
     with col2:
         max_cloud_percent = st.slider(
             "Maximum cloud cover (%)",
@@ -278,7 +277,7 @@ def main():
             stac_items,
             st.session_state["geometry"],
             satellite_sensor_params,
-            assets
+            view_param
         )
 
         st.write(f'Image ID: {image_data["name"]}')
