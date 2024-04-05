@@ -252,7 +252,9 @@ def main():
 
         web_map.add_polygon(st.session_state["geometry"])
     with col2:
-        gif_check_box = st.checkbox("Create GIF", value=False)
+        gif_check_box = False
+        if satellite_sensor_params["name"].lower() in app_config_data.allowed_gif_satellite:
+            gif_check_box = st.checkbox("Create GIF", value=False)
         if gif_check_box:
             create_gif_button = st.button("Render GIF")
             time_per_image = st.number_input(

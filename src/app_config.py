@@ -12,20 +12,21 @@ class AppConfig:
         self.geocoder_api_key = os.getenv("GEOCODER_API_KEY", "abcd")
         self.default_start_address = os.getenv("DEFAULT_START_ADDRESS", "Ingaí MG")
         self.enable_sentinel = os.getenv("ENABLE_SENTINEL", "True").lower() in ('true', '1', 't')
-        self.enable_landsat = os.getenv("ENABLE_LANDSAT", "True").lower() in ('true', '1', 't')
+        self.enable_landsat = os.getenv("ENABLE_LANDSAT", "False").lower() in ('true', '1', 't')
         self.satelites = self.__get_satellites_params()
         self.default_cloud_cover = float(os.getenv("DEFAULT_CLOUD_COVER", "30.0"))
         self.default_satellite_choice_index = int(os.getenv("DEFAULT_SATELLITE_CHOICE_INDEX", "0"))
         self.max_stac_items = int(os.getenv("MAX_STAC_ITEMS", "5"))
         self.gif_default_time_per_image = float(os.getenv("GIF_DEFAULT_TIME_PER_IMAGE", 0.15))
         self.gif_default_day_interval = int(os.getenv("GIF_DEFAULT_DAY_INTERVAL", "180"))
+        self.allowed_gif_satellite = os.getenv("ALLOWED_GIF_SATELLITE", "sentinel 2").lower()
 
     def __get_satellites_params(self):
         params = {}
         if self.enable_sentinel:
-            params.update({"sentinel 2": self.__get_sensor_sentinel_params()})
+            params.update({"Sentinel 2": self.__get_sensor_sentinel_params()})
         if self.enable_landsat:
-            params.update({"landsat": self.__get_sensor_landsat_params()})
+            params.update({"Landsat": self.__get_sensor_landsat_params()})
         return params
 
     @staticmethod
