@@ -7,6 +7,7 @@ from controller.catalog_searcher import CatalogSearcher
 from controller.address_searcher import AddressSearcher
 from controller.point_bufferer import PointBufferer
 from controller.animation_creator import AnimationCreator
+from controller.resolution_booster import ResolutionBooster
 from datetime import datetime, timedelta
 
 app_config_data = AppConfig()
@@ -29,6 +30,7 @@ worker_animation_creator = AnimationCreator(
     catalog_searcher=worker_catalog_searcher,
     image_renderer=worker_image_renderer
 )
+worker_resolution_booster = ResolutionBooster()
 
 
 @st.cache_data
@@ -112,9 +114,13 @@ def mosaic_render(
     params.update({"min_value":image_range[0], "max_value":image_range[1]})
     params.update({"color_formula": color_formula, "colormap":colormap})
 
-
     image_data = worker_image_renderer.render_mosaic_from_stac(params)
+
     return image_data
+
+@st.cache_data
+def image_super_resolution(image):
+    return worker_resolution_booster.image_resolution_booster(image)
 
 def create_download_zip_button(zip_file, name):
     zip_name = name[:128].replace(',','-')
@@ -201,6 +207,7 @@ def main():
     web_map = WebMap()
 
     web_map.add_draw_support()
+    web_map.add_measure_control()
     web_map.add_base_map(app_config_data.google_basemap, "google satellite", "google", show=True)
     web_map.add_base_map(app_config_data.open_street_maps, "open street maps", "open street maps")
     web_map.add_base_map(app_config_data.esri_basemap, "esri satellite", "esri")
@@ -223,6 +230,8 @@ def main():
                     index=app_config_data.default_satellite_choice_index
                 )
                 pixelate_image = st.checkbox("Pixelated image?", value=True)
+                super_resolution = st.checkbox("Enhanced resolution?", value=False)
+
                 satellite_sensor_params = app_config_data.satelites.get(satellite_sensor)
             with col4:
                 view_mode = st.radio(
@@ -414,11 +423,11 @@ def main():
             view_param,
             image_range,
             color_formula,
-            colormap
-        )
+            colormap)
+        if super_resolution:
+            image_data["image"] = image_super_resolution(image_data["image"])
 
         st.write(f'Image ID: {image_data["name"]}')
-
 
         with col1:
             create_download_zip_button(image_data["zip_file"], image_data["name"])
