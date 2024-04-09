@@ -7,7 +7,6 @@ from controller.catalog_searcher import CatalogSearcher
 from controller.address_searcher import AddressSearcher
 from controller.point_bufferer import PointBufferer
 from controller.animation_creator import AnimationCreator
-from controller.resolution_booster import ResolutionBooster
 from datetime import datetime, timedelta
 
 app_config_data = AppConfig()
