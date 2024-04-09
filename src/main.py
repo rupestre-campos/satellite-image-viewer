@@ -29,8 +29,6 @@ worker_animation_creator = AnimationCreator(
     catalog_searcher=worker_catalog_searcher,
     image_renderer=worker_image_renderer
 )
-worker_resolution_booster = ResolutionBooster()
-
 
 @st.cache_data
 def buffer_point(latitude, longitude, distance):
