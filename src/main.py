@@ -7,7 +7,6 @@ from controller.catalog_searcher import CatalogSearcher
 from controller.address_searcher import AddressSearcher
 from controller.point_bufferer import PointBufferer
 from controller.animation_creator import AnimationCreator
-from controller.resolution_booster import ResolutionBooster
 from datetime import datetime, timedelta
 
 app_config_data = AppConfig()
@@ -118,10 +117,6 @@ def mosaic_render(
 
     return image_data
 
-@st.cache_data
-def image_super_resolution(image):
-    return worker_resolution_booster.image_resolution_booster(image)
-
 def create_download_zip_button(zip_file, name):
     zip_name = name[:128].replace(',','-')
     st.download_button(
@@ -230,7 +225,6 @@ def main():
                     index=app_config_data.default_satellite_choice_index
                 )
                 pixelate_image = st.checkbox("Pixelated image?", value=True)
-                super_resolution = st.checkbox("Enhanced resolution?", value=False)
 
                 satellite_sensor_params = app_config_data.satelites.get(satellite_sensor)
             with col4:
@@ -424,8 +418,6 @@ def main():
             image_range,
             color_formula,
             colormap)
-        if super_resolution:
-            image_data["image"] = image_super_resolution(image_data["image"])
 
         st.write(f'Image ID: {image_data["name"]}')
 
