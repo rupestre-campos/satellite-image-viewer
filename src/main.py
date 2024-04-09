@@ -191,6 +191,7 @@ def main():
                     options=sorted(list(app_config_data.satelites.keys())),
                     index=app_config_data.default_satellite_choice_index
                 )
+                pixelate_image = st.checkbox("Pixelated image?", value=True)
                 satellite_sensor_params = app_config_data.satelites.get(satellite_sensor)
             with col4:
                 view_mode = st.radio(
@@ -346,7 +347,7 @@ def main():
         if st.session_state["result_gif_image"]:
             create_download_gif_button(st.session_state["result_gif_image"])
     web_map.add_layer_control()
-    user_draw = web_map.render_web_map()
+    user_draw = web_map.render_web_map(pixelated=pixelate_image)
 
     if user_draw["geometry"] != None \
         and st.session_state["user_draw"] != user_draw["geometry"]:
