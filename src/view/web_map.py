@@ -1,5 +1,5 @@
 import folium
-from folium.plugins import Draw
+from folium.plugins import Draw, MeasureControl
 from streamlit_folium import st_folium
 
 class WebMap:
@@ -15,7 +15,9 @@ class WebMap:
         )
 
     def add_layer_control(self):
-        folium.LayerControl().add_to(self.web_map)
+        folium.LayerControl(
+            collapsed=False
+        ).add_to(self.web_map)
 
     def add_base_map(self, tile_url, name, attribution, max_zoom=30, max_native_zoom=18, show=False):
         folium.raster_layers.TileLayer(
@@ -26,6 +28,11 @@ class WebMap:
             max_native_zoom=max_native_zoom,
             show=show,
             overlay=False
+        ).add_to(self.web_map)
+
+    def add_measure_control(self):
+        MeasureControl(
+            position="bottomright"
         ).add_to(self.web_map)
 
     def add_draw_support(self, export=False):
