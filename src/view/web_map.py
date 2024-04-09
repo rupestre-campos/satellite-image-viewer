@@ -46,11 +46,11 @@ class WebMap:
             }
         ).add_to(self.web_map)
 
-    def _streamlit_render(self):
-        return st_folium(self.web_map, use_container_width=True)
+    def _streamlit_render(self, pixelated):
+        return st_folium(self.web_map, use_container_width=True, pixelated=pixelated)
 
-    def render_web_map(self):
-        user_data = self._streamlit_render()
+    def render_web_map(self, pixelated=True):
+        user_data = self._streamlit_render(pixelated)
         if not user_data["last_active_drawing"]:
             return {"geometry":None}
         return {"geometry": user_data["last_active_drawing"]["geometry"]}

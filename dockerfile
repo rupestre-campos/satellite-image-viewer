@@ -1,11 +1,20 @@
 FROM python:3.10-slim
 
+# Install Node.js and npm
+RUN apt-get update && \
+    apt-get install -y curl && \
+    curl -sL https://deb.nodesource.com/setup_20.x | bash - && \
+    apt-get install -y nodejs
+
 WORKDIR /src
 
 COPY ./src /src
 COPY requirements.txt /src
 
 RUN pip install --no-cache-dir --upgrade pip -r requirements.txt
+
+# Return to the working directory
+WORKDIR /src
 
 EXPOSE 8001
 
