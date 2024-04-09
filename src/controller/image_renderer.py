@@ -5,6 +5,7 @@ from model.read_stac import ReadSTAC
 class ImageRenderer:
     def __init__(self,):
         self.stac_reader = self.__model_read_stac()
+        self.colormaps = self.stac_reader.colormaps
 
     @staticmethod
     def __model_read_stac():

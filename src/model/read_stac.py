@@ -13,6 +13,7 @@ class ReadSTAC:
     def __init__(self):
         self.default_crs = "EPSG:4326"
         self.formats = {"PNG":"PGW", "JPEG":"JGW"}
+        self.colormaps = cmap.list()
 
     @staticmethod
     def __tiler(item, *args, **kwargs):
@@ -70,8 +71,8 @@ class ReadSTAC:
 
         return image_data.post_process(
             in_range=((
-                params.get("index_min_value",-1),
-                params.get("index_max_value", 1),
+                params.get("min_value",-1),
+                params.get("max_value", 1),
             ),),
         )
 

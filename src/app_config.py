@@ -20,6 +20,10 @@ class AppConfig:
         self.gif_default_time_per_image = float(os.getenv("GIF_DEFAULT_TIME_PER_IMAGE", "0.2"))
         self.gif_default_day_interval = int(os.getenv("GIF_DEFAULT_DAY_INTERVAL", "60"))
         self.allowed_gif_satellite = os.getenv("ALLOWED_GIF_SATELLITE", "sentinel 2").lower()
+        self.max_saturation = float(os.getenv("IMAGE_MAX_SATURATION", 5))
+        self.max_gamma = float(os.getenv("IMAGE_MAX_GAMMA", 5))
+        self.max_sigmoidal = float(os.getenv("IMAGE_MAX_SIGMOIDAL", 15))
+        self.max_sigmoidal_gain = float(os.getenv("IMAGE_MAX_SIGMOIDAL_GAIN", 5))
 
     def __get_satellites_params(self):
         params = {}
@@ -38,15 +42,16 @@ class AppConfig:
         band_nodata_value = int(os.getenv("SENTINEL_BAND_NODATA_VALUE", 0))
         band_min_value = int(os.getenv("SENTINEL_BAND_MIN_VALUE", 0))
         band_max_value = int(os.getenv("SENTINEL_BAND_MAX_VALUE", 4000))
-        index_min_value = int(os.getenv("SENTINEL_INDEX_MIN_VALUE", -1))
-        index_max_value = int(os.getenv("SENTINEL_INDEX_MAX_VALUE", 1))
+        index_min_value = float(os.getenv("SENTINEL_INDEX_MIN_VALUE", -1))
+        index_max_value = float(os.getenv("SENTINEL_INDEX_MAX_VALUE", 1))
         nir = os.getenv("SENTINEL_NIR_CHANNEL_ASSET_NAME", "nir")
         red = os.getenv("SENTINEL_R_CHANNEL_ASSET_NAME", "red")
         green = os.getenv("SENTINEL_G_CHANNEL_ASSET_NAME", "green")
         blue = os.getenv("SENTINEL_B_CHANNEL_ASSET_NAME", "blue")
-        color_formula_sigmoidal = os.getenv("SENTINEL_COLOR_FORMULA_SIGMOIDAL", "sigmoidal RGB 6 0.1")
-        color_formula_gamma = os.getenv("SENTINEL_COLOR_FORMULA_GAMMA", "gamma G 1.1 gamma B 1.2")
-        color_formula_saturation = os.getenv("SENTINEL_COLOR_FORMULA_SATURATION", "saturation 1.2")
+        color_formula_sigmoidal = float(os.getenv("SENTINEL_COLOR_FORMULA_SIGMOIDAL", "6"))
+        color_formula_sigmoidal_gain = float(os.getenv("SENTINEL_COLOR_FORMULA_SIGMOIDAL_GAIN", "0.1"))
+        color_formula_gamma = float(os.getenv("SENTINEL_COLOR_FORMULA_GAMMA", "1.2"))
+        color_formula_saturation = float(os.getenv("SENTINEL_COLOR_FORMULA_SATURATION", "2.3"))
         aws_access_key_id = os.getenv("SENTINEL_AWS_ACCESS_KEY_ID", "")
         aws_secret_access_key = os.getenv("SENTINEL_AWS_SECRET_ACCESS_KEY", "")
         region_name = os.getenv("SENTINEL_AWS_REGION_NAME", "us-west-2")
@@ -84,12 +89,19 @@ class AppConfig:
             },
             "index_min_value": index_min_value,
             "index_max_value": index_max_value,
-            "color_formula":f"{color_formula_sigmoidal} {color_formula_gamma} {color_formula_saturation}",
+            "color_formula":
+                f"sigmoidal RGB {color_formula_sigmoidal} {color_formula_sigmoidal_gain} "\
+                f"gamma RGB {color_formula_gamma} "\
+                f"saturation {color_formula_saturation}",
             "aws_access_key_id": aws_access_key_id,
             "aws_secret_access_key": aws_secret_access_key,
             "aws_region_name": region_name,
             "aws_request_payer": aws_request_payer,
-            "aws_no_sign_requests": aws_no_sign_requests
+            "aws_no_sign_requests": aws_no_sign_requests,
+            "color_formula_saturation": color_formula_saturation,
+            "color_formula_sigmoidal": color_formula_sigmoidal,
+            "color_formula_sigmoidal_gain": color_formula_sigmoidal_gain,
+            "color_formula_gamma": color_formula_gamma,
         }
 
     @staticmethod
@@ -101,15 +113,16 @@ class AppConfig:
         band_nodata_value = int(os.getenv("LANDSAT_BAND_NODATA_VALUE", 0))
         band_min_value = int(os.getenv("LANDSAT_BAND_MIN_VALUE", 7273))
         band_max_value = int(os.getenv("LANDSAT_BAND_MAX_VALUE", 43636))
-        index_min_value = int(os.getenv("LANDSAT_INDEX_MIN_VALUE", -1))
-        index_max_value = int(os.getenv("LANDSAT_INDEX_MAX_VALUE", 1))
+        index_min_value = float(os.getenv("LANDSAT_INDEX_MIN_VALUE", -1))
+        index_max_value = float(os.getenv("LANDSAT_INDEX_MAX_VALUE", 1))
         nir = os.getenv("LANDSAT_NIR_CHANNEL_ASSET_NAME", "nir08")
         red = os.getenv("LANDSAT_R_CHANNEL_ASSET_NAME", "red")
         green = os.getenv("LANDSAT_G_CHANNEL_ASSET_NAME", "green")
         blue = os.getenv("LANDSAT_B_CHANNEL_ASSET_NAME", "blue")
-        color_formula_sigmoidal = os.getenv("LANDSAT_COLOR_FORMULA_SIGMOIDAL", "sigmoidal RGB 10 0.01")
-        color_formula_gamma = os.getenv("LANDSAT_COLOR_FORMULA_GAMMA", "gamma G 1.1 gamma B 1.2")
-        color_formula_saturation = os.getenv("LANDSAT_COLOR_FORMULA_SATURATION", "saturation 1.2")
+        color_formula_sigmoidal = float(os.getenv("LANDSAT_COLOR_FORMULA_SIGMOIDAL", "10"))
+        color_formula_sigmoidal_gain = float(os.getenv("LANDSAT_COLOR_FORMULA_SIGMOIDAL_GAIN", "0.01"))
+        color_formula_gamma = float(os.getenv("LANDSAT_COLOR_FORMULA_GAMMA", "1.2"))
+        color_formula_saturation = float(os.getenv("LANDSAT_COLOR_FORMULA_SATURATION", "2.3"))
         aws_access_key_id = os.getenv("LANDSAT_AWS_ACCESS_KEY_ID", "")
         aws_secret_access_key = os.getenv("LANDSAT_AWS_SECRET_ACCESS_KEY", "")
         region_name = os.getenv("LANDSAT_AWS_REGION_NAME", "us-west-2")
@@ -147,10 +160,17 @@ class AppConfig:
             },
             "index_min_value": index_min_value,
             "index_max_value": index_max_value,
-            "color_formula":f"{color_formula_sigmoidal} {color_formula_gamma} {color_formula_saturation}",
+            "color_formula":
+                f"sigmoidal RGB {color_formula_sigmoidal} {color_formula_sigmoidal_gain} "\
+                f"gamma RGB {color_formula_gamma} "\
+                f"saturation {color_formula_saturation}",
             "aws_access_key_id": aws_access_key_id,
             "aws_secret_access_key": aws_secret_access_key,
             "aws_region_name": region_name,
             "aws_request_payer": aws_request_payer,
-            "aws_no_sign_requests": aws_no_sign_requests
+            "aws_no_sign_requests": aws_no_sign_requests,
+            "color_formula_saturation": color_formula_saturation,
+            "color_formula_sigmoidal": color_formula_sigmoidal,
+            "color_formula_sigmoidal_gain": color_formula_sigmoidal_gain,
+            "color_formula_gamma": color_formula_gamma,
         }

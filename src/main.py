@@ -18,6 +18,7 @@ st.set_page_config(
 )
 worker_catalog_searcher = CatalogSearcher(app_config_data.stac_url)
 worker_image_renderer = ImageRenderer()
+colormaps = sorted(worker_image_renderer.colormaps)
 worker_point_bufferer = PointBufferer()
 worker_address_searcher = AddressSearcher(
     api_url=app_config_data.geocoder_url,
@@ -88,7 +89,15 @@ def catalog_search(max_items, feature_geojson, date_string, max_cloud_cover, col
     return worker_catalog_searcher.search_images(params)
 
 @st.cache_data
-def mosaic_render(stac_list, feature_geojson, satellite_params, view_params):
+def mosaic_render(
+    stac_list,
+    feature_geojson,
+    satellite_params,
+    view_params,
+    image_range,
+    color_formula,
+    colormap
+    ):
     params = satellite_params.copy()
     params.update({
         "zip_file": True,
@@ -100,6 +109,9 @@ def mosaic_render(stac_list, feature_geojson, satellite_params, view_params):
     params.pop("assets")
     params.pop("expression")
     params.update(view_params)
+    params.update({"min_value":image_range[0], "max_value":image_range[1]})
+    params.update({"color_formula": color_formula, "colormap":colormap})
+
 
     image_data = worker_image_renderer.render_mosaic_from_stac(params)
     return image_data
@@ -144,6 +156,25 @@ def parse_location(location):
         "latitude": latitude,
         "longitude": longitude,
         "warning": warning
+    }
+
+def get_min_max_image_range(view_mode, satellite_sensor_params):
+    if view_mode=="expression":
+        return {
+            "range":(-1.0,1.0),
+            "default": (
+                satellite_sensor_params["index_min_value"],
+                satellite_sensor_params["index_max_value"]
+            ),
+            "step":0.05
+        }
+    return {
+        "range": (0, 63535),
+        "default": (
+            satellite_sensor_params["min_value"],
+            satellite_sensor_params["max_value"]
+        ),
+        "step":1
     }
 
 def startup_session_variables():
@@ -199,11 +230,20 @@ def main():
                     options=["assets", "expression"],
                     index=0
                 )
-
+                options = sorted(satellite_sensor_params[view_mode].keys())
+                options_index = options.index("real-color (RGB)") if view_mode == "assets" else options.index("ndvi")
                 selected_bands = st.selectbox(
                     "options",
-                    options=sorted(satellite_sensor_params[view_mode].keys()),
-                    index=0
+                    options=options,
+                    index=options_index
+                )
+                min_max_range = get_min_max_image_range(view_mode, satellite_sensor_params)
+                image_range = st.slider(
+                    "Image Min Max range",
+                    min_value=min_max_range["range"][0],
+                    max_value=min_max_range["range"][1],
+                    value=min_max_range["default"],
+                    step=min_max_range["step"]
                 )
 
                 view_param = {view_mode: satellite_sensor_params[view_mode][selected_bands]}
@@ -216,6 +256,50 @@ def main():
                 value=app_config_data.default_cloud_cover,
                 step=0.5
             )
+            color_formula = ""
+            colormap = ""
+
+            if view_mode == "assets":
+                col3, col4 = st.columns(2)
+                with col3:
+                    saturation = st.slider(
+                        "image saturarion",
+                        min_value=0.0,
+                        max_value=app_config_data.max_saturation,
+                        step=0.1,
+                        value=satellite_sensor_params["color_formula_saturation"]
+                    )
+                    gamma = st.slider(
+                        "image gamma",
+                        min_value=0.0,
+                        max_value=app_config_data.max_gamma,
+                        step=0.1,
+                        value=satellite_sensor_params["color_formula_gamma"]
+                    )
+                with col4:
+                    sigmoidal = st.slider(
+                        "image sigmoidal",
+                        min_value=0.0,
+                        max_value=app_config_data.max_sigmoidal,
+                        step=0.5,
+                        value=satellite_sensor_params["color_formula_sigmoidal"]
+                    )
+                    sigmoidal_gain = st.slider(
+                        "image sigmoidal gain",
+                        min_value=0.0,
+                        max_value=app_config_data.max_sigmoidal_gain,
+                        step=0.1,
+                        value=satellite_sensor_params["color_formula_sigmoidal_gain"]
+                    )
+                color_formula = f"sigmoidal RGB {sigmoidal} {sigmoidal_gain} "\
+                                f"gamma RGB {gamma} saturation {saturation}"
+            if view_mode == "expression":
+                colormap = st.selectbox(
+                    "Image colormap",
+                    options=colormaps,
+                    index=colormaps.index("viridis")
+                )
+
         col1, col2 = st.columns(2)
         with col1:
             st.session_state["start_date"] = datetime.strptime(
@@ -327,7 +411,10 @@ def main():
             stac_items,
             st.session_state["geometry"],
             satellite_sensor_params,
-            view_param
+            view_param,
+            image_range,
+            color_formula,
+            colormap
         )
 
         st.write(f'Image ID: {image_data["name"]}')
