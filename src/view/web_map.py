@@ -30,11 +30,6 @@ class WebMap:
             overlay=False
         ).add_to(self.web_map)
 
-    def add_measure_control(self):
-        MeasureControl(
-            position="bottomright"
-        ).add_to(self.web_map)
-
     def add_draw_support(self, export=False):
         Draw(
             export=export,
