@@ -24,6 +24,9 @@ class AppConfig:
         self.max_gamma = float(os.getenv("IMAGE_MAX_GAMMA", 5))
         self.max_sigmoidal = float(os.getenv("IMAGE_MAX_SIGMOIDAL", 15))
         self.max_sigmoidal_gain = float(os.getenv("IMAGE_MAX_SIGMOIDAL_GAIN", 5))
+        self.default_composition_index = int(os.getenv("DEFAULT_COMPOSITION_INDEX", 0))
+        self.default_composition_value_for_index = os.getenv("DEFAULT_COMPOSITION_VALUE_INDEX", "ndvi")
+        self.default_composition_value_for_composite = os.getenv("DEFAULT_COMPOSITION_VALUE_COMPOSITE", "real-color (RGB)")
 
     def __get_satellites_params(self):
         params = {}

@@ -176,6 +176,12 @@ def get_min_max_image_range(view_mode, satellite_sensor_params):
         "step":1
     }
 
+def get_default_view_options_index(view_mode, options):
+    if view_mode == "assets":
+        return options.index(app_config_data.default_composition_value_for_composite)
+
+    return options.index(app_config_data.default_composition_value_for_index)
+
 def startup_session_variables():
     st.write('<style>div.row-widget.stRadio > div{flex-direction:row;}</style>', unsafe_allow_html=True)
     if "geometry" not in st.session_state:
@@ -200,7 +206,6 @@ def main():
     web_map = WebMap()
 
     web_map.add_draw_support()
-    web_map.add_measure_control()
     web_map.add_base_map(app_config_data.google_basemap, "google satellite", "google", show=True)
     web_map.add_base_map(app_config_data.open_street_maps, "open street maps", "open street maps")
     web_map.add_base_map(app_config_data.esri_basemap, "esri satellite", "esri")
@@ -229,10 +234,11 @@ def main():
                 view_mode = st.radio(
                     "Select image composition",
                     options=["assets", "expression"],
-                    index=0
+                    index=app_config_data.default_composition_index
                 )
                 options = sorted(satellite_sensor_params[view_mode].keys())
-                options_index = options.index("real-color (RGB)") if view_mode == "assets" else options.index("ndvi")
+                options_index = get_default_view_options_index(view_mode, options)
+
                 selected_bands = st.selectbox(
                     "options",
                     options=options,
