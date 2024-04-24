@@ -381,6 +381,11 @@ def create_powered_by_menu():
 
 def main():
     startup_session_variables()
+    web_map = WebMap()
+    web_map.add_draw_support()
+    web_map.add_base_map(app_config_data.google_basemap, "google satellite", "google", show=True)
+    web_map.add_base_map(app_config_data.open_street_maps, "open street maps", "open street maps")
+    web_map.add_base_map(app_config_data.esri_basemap, "esri satellite", "esri")
 
     st.title("Satellite Image Viewer")
     col1, col2, col3 = st.columns(3)
@@ -500,11 +505,6 @@ def main():
         with col1:
             create_download_zip_button(image_data["zip_file"], image_data["name"])
 
-        web_map = WebMap()
-        web_map.add_draw_support()
-        web_map.add_base_map(app_config_data.google_basemap, "google satellite", "google", show=True)
-        web_map.add_base_map(app_config_data.open_street_maps, "open street maps", "open street maps")
-        web_map.add_base_map(app_config_data.esri_basemap, "esri satellite", "esri")
 
         web_map.add_image(
             image_data["image"],
