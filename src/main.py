@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit_ext as ste
 
 from app_config import AppConfig
 from view.web_map import WebMap
@@ -117,7 +118,7 @@ def mosaic_render(
 
 def create_download_zip_button(zip_file, name):
     zip_name = name[:128].replace(',','-')
-    st.download_button(
+    ste.download_button(
         label="Download Image data",
         data = zip_file,
         file_name = f"{zip_name}.zip",
@@ -126,7 +127,7 @@ def create_download_zip_button(zip_file, name):
 
 def create_download_gif_button(gif_result):
     gif_name = f"result-{datetime.now().strftime('%Y%m%dT%H%M%S')}"
-    st.download_button(
+    ste.download_button(
         label="Download GIF",
         data = gif_result["image"],
         file_name = f"{gif_name}.gif",
@@ -146,8 +147,8 @@ def parse_location(location):
         latitude = location[0]
         longitude = location[1]
         return {
-            "latitude": latitude,
-            "longitude": longitude,
+            "latitude": float(latitude),
+            "longitude": float(longitude),
             "warning": warning
         }
     warning = "Location not found."
@@ -190,196 +191,267 @@ def startup_session_variables():
         st.session_state["user_draw"] = {}
     if "where_to_go" not in st.session_state:
         st.session_state["where_to_go"] = ""
-    if "end_date" not in st.session_state:
-        st.session_state["end_date"] = datetime.now()
-    if "start_date" not in st.session_state:
-        st.session_state["start_date"] = datetime(2015, 6, 22)
-    if "date_range_values" not in st.session_state:
-        st.session_state["data_range_values"] = (
-            st.session_state["end_date"] - timedelta(days=365),
-            st.session_state["end_date"])
     if not "result_gif_image" in st.session_state:
         st.session_state["result_gif_image"] = {}
 
-def main():
-    startup_session_variables()
-    web_map = WebMap()
-
-    web_map.add_draw_support()
-    web_map.add_base_map(app_config_data.google_basemap, "google satellite", "google", show=True)
-    web_map.add_base_map(app_config_data.open_street_maps, "open street maps", "open street maps")
-    web_map.add_base_map(app_config_data.esri_basemap, "esri satellite", "esri")
-
-    st.title("Satellite Image Viewer")
-    st.write("Search where to go below or drop a pin on map to get fresh images")
-    address_to_search = st.text_input(
-        "Search address or location",
-        value=app_config_data.default_start_address,
-        placeholder="Drake Park Bend OR"
-    )
+def create_options_menu(satellite_sensor_params):
+    color_formula = ""
+    colormap = ""
+    view_modes = ["assets", "expression"]
     with st.expander("options"):
         col1, col2 = st.columns(2)
         with col1:
             col3, col4 = st.columns(2)
             with col3:
-                satellite_sensor = st.radio(
-                    "Satellite",
-                    options=sorted(list(app_config_data.satelites.keys())),
-                    index=app_config_data.default_satellite_choice_index
-                )
-                pixelate_image = st.checkbox("Pixelated image?", value=True)
-
-                satellite_sensor_params = app_config_data.satelites.get(satellite_sensor)
-            with col4:
-                view_mode = st.radio(
+                view_mode = ste.radio(
                     "Select image composition",
-                    options=["assets", "expression"],
-                    index=app_config_data.default_composition_index
+                    options=view_modes,
+                    index=app_config_data.default_composition_index,
+                    key="img-comp"
                 )
+                if not view_mode:
+                    view_mode = view_modes[app_config_data.default_composition_index]
+                    st.query_params["img-comp"] = view_mode
+
+            with col4:
                 options = sorted(satellite_sensor_params[view_mode].keys())
                 options_index = get_default_view_options_index(view_mode, options)
-
-                selected_bands = st.selectbox(
-                    "options",
+                selected_bands = ste.selectbox(
+                    "Composition options",
                     options=options,
-                    index=options_index
+                    index=options_index,
+                    key="img-view"
                 )
-                min_max_range = get_min_max_image_range(view_mode, satellite_sensor_params)
-                image_range = st.slider(
-                    "Image Min Max range",
+                if not selected_bands:
+                    selected_bands = options[options_index]
+                    st.query_params["img-view"] = selected_bands
+
+        with col2:
+            col3, col4 = st.columns(2)
+            min_max_range = get_min_max_image_range(view_mode, satellite_sensor_params)
+            with col3:
+                image_range_min = st.number_input(
+                    "Image min value",
+                    value=min_max_range["default"][0],
                     min_value=min_max_range["range"][0],
                     max_value=min_max_range["range"][1],
-                    value=min_max_range["default"],
-                    step=min_max_range["step"]
+                    key="img-min"
                 )
 
-                view_param = {view_mode: satellite_sensor_params[view_mode][selected_bands]}
+            with col4:
+                image_range_max = st.number_input(
+                    "Image max value",
+                    value=min_max_range["default"][1],
+                    min_value=min_max_range["range"][0],
+                    max_value=min_max_range["range"][1],
+                    key="img-max"
+                )
 
-        with col2:
-            max_cloud_percent = st.slider(
-                "Maximum cloud cover (%)",
-                min_value=0.0,
-                max_value=100.0,
-                value=app_config_data.default_cloud_cover,
-                step=0.5
-            )
-            color_formula = ""
-            colormap = ""
+            image_range = (image_range_min, image_range_max)
+            view_param = {view_mode: satellite_sensor_params[view_mode][selected_bands]}
 
-            if view_mode == "assets":
-                col3, col4 = st.columns(2)
-                with col3:
-                    saturation = st.slider(
-                        "image saturarion",
-                        min_value=0.0,
-                        max_value=app_config_data.max_saturation,
-                        step=0.1,
-                        value=satellite_sensor_params["color_formula_saturation"]
-                    )
-                    gamma = st.slider(
-                        "image gamma",
-                        min_value=0.0,
-                        max_value=app_config_data.max_gamma,
-                        step=0.1,
-                        value=satellite_sensor_params["color_formula_gamma"]
-                    )
-                with col4:
-                    sigmoidal = st.slider(
-                        "image sigmoidal",
-                        min_value=0.0,
-                        max_value=app_config_data.max_sigmoidal,
-                        step=0.5,
-                        value=satellite_sensor_params["color_formula_sigmoidal"]
-                    )
-                    sigmoidal_gain = st.slider(
-                        "image sigmoidal gain",
-                        min_value=0.0,
-                        max_value=app_config_data.max_sigmoidal_gain,
-                        step=0.1,
-                        value=satellite_sensor_params["color_formula_sigmoidal_gain"]
-                    )
-                color_formula = f"sigmoidal RGB {sigmoidal} {sigmoidal_gain} "\
-                                f"gamma RGB {gamma} saturation {saturation}"
-            if view_mode == "expression":
-                colormap = st.selectbox(
+        if view_mode == "expression":
+            col1, col2, col3, col4 = st.columns(4)
+            with col2:
+                colormap = ste.selectbox(
                     "Image colormap",
                     options=colormaps,
-                    index=colormaps.index("viridis")
+                    index=colormaps.index("viridis"),
+                    key="colormap"
                 )
+                if not colormap:
+                    colormap = colormaps[colormaps.index("viridis")]
+
+            return {
+                "colormap": colormap,
+                "color_formula": color_formula,
+                "image_range": image_range,
+                "view_param": view_param,
+            }
 
         col1, col2 = st.columns(2)
         with col1:
-            st.session_state["start_date"] = datetime.strptime(
-                satellite_sensor_params.get("start_date"),
-                "%Y-%m-%d"
-            )
-            st.session_state["end_date"] = datetime.strptime(
-                satellite_sensor_params.get("end_date"),
-                "%Y-%m-%d"
-            )
-            selected_dates = st.slider(
-                "Select a date range",
-                min_value=st.session_state["start_date"],
-                max_value=st.session_state["end_date"],
-                value=st.session_state["data_range_values"],
-                step=timedelta(days=1),
-                format="YYYY-MM-DD"
-            )
+            col3, col4 = st.columns(2)
+            with col3:
+                gamma = ste.number_input(
+                    "gamma",
+                    value=satellite_sensor_params["color_formula_gamma"],
+                    min_value=0.0,
+                    max_value=app_config_data.max_gamma,
+                    step=0.05,
+                    key="img-gamma"
+                )
 
-            st.session_state["data_range_values"] = selected_dates
-            date_string = create_datestring_from_selected_dates(selected_dates)
-
+            with col4:
+                saturation = ste.number_input(
+                    "saturation",
+                    value=satellite_sensor_params["color_formula_saturation"],
+                    min_value=0.0,
+                    max_value=app_config_data.max_saturation,
+                    step=0.05,
+                    key="img-saturation"
+                )
         with col2:
-            point_buffer_width = st.slider(
-                "Point buffer distance (m)",
-                min_value=50,
-                max_value=app_config_data.buffer_width,
-                value=app_config_data.buffer_width,
-            )
-        col1, col2 = st.columns(2)
+            col3, col4 = st.columns(2)
+            with col3:
+                sigmoidal = ste.number_input(
+                    "sigmoidal",
+                    value=satellite_sensor_params["color_formula_sigmoidal"],
+                    min_value=0.0,
+                    max_value=app_config_data.max_sigmoidal,
+                    step=0.05,
+                    key="img-sigmoidal"
+                )
+            with col4:
+                sigmoidal_gain = ste.number_input(
+                    "sigmoidal gain",
+                    value=satellite_sensor_params["color_formula_sigmoidal_gain"],
+                    min_value=0.0,
+                    max_value=app_config_data.max_sigmoidal_gain,
+                    step=0.05,
+                    key="img-sigmoidal-gain"
+                )
+
+            color_formula = f"sigmoidal RGB {sigmoidal} {sigmoidal_gain} "\
+                            f"gamma RGB {gamma} saturation {saturation}"
+        return {
+            "colormap": colormap,
+            "color_formula": color_formula,
+            "image_range": image_range,
+            "view_param": view_param,
+        }
+
+def create_gif_menu(date_string, satellite_sensor_params, max_cloud_percent, view_param):
+    create_gif_button = False
+    gif_check_box = False
+    if satellite_sensor_params["name"].lower() in app_config_data.allowed_gif_satellite:
+        gif_check_box = ste.checkbox("GIF creator", value=False, key="gif-creator")
+    if gif_check_box:
+        col1, col2, col3 = st.columns(3)
         with col1:
-            create_gif_button = False
-            gif_check_box = False
-            if satellite_sensor_params["name"].lower() in app_config_data.allowed_gif_satellite:
-                gif_check_box = st.checkbox("Create GIF", value=False)
-            if gif_check_box:
-                time_per_image = st.slider(
-                    "Time per image (s)",
-                    min_value=0.01,
-                    max_value=3.0,
-                    step=0.01,
-                    value=app_config_data.gif_default_time_per_image
-                )
-                period_time_break = st.slider(
-                    "Day interval",
-                    min_value=30,
-                    max_value=365,
-                    value=app_config_data.gif_default_day_interval
-                )
+            time_per_image = ste.number_input(
+                "Time per image (seconds)",
+                min_value=app_config_data.gif_min_time_per_image,
+                max_value=app_config_data.gif_max_time_per_image,
+                step=0.01,
+                value=app_config_data.gif_default_time_per_image,
+                key="gif-time"
+            )
+        with col2:
+            period_time_break = ste.number_input(
+                "Interval between images (days)",
+                min_value=app_config_data.gif_min_interval,
+                max_value=app_config_data.gif_max_interval,
+                value=app_config_data.gif_default_interval,
+                key="gif-interval"
+            )
+        with col3:
+            image_size = ste.number_input(
+                "Output image size (pixels)",
+                min_value=app_config_data.gif_min_img_size,
+                max_value=app_config_data.gif_max_img_size,
+                value=app_config_data.gif_default_img_size,
+                key="gif-size"
+            )
 
-                image_size = st.slider(
-                    "Image size (pixels)",
-                    min_value=100,
-                    max_value=512,
-                    value=320
-                )
+        create_gif_button = st.button("Render GIF")
+        if create_gif_button:
+            result_gif_image = create_gif(
+                period_time_break=period_time_break,
+                satellite_params=satellite_sensor_params,
+                feature_geojson=st.session_state["geometry"],
+                max_cloud_cover=max_cloud_percent,
+                time_per_image=time_per_image,
+                date_string=date_string,
+                view_params=view_param,
+                width=image_size,
+            )
+            st.session_state["result_gif_image"] = result_gif_image
+            result_gif_image = None
 
-                with col2:
-                    create_gif_button = st.button("Render GIF")
-                    if create_gif_button:
-                        result_gif_image = create_gif(
-                            feature_geojson=st.session_state["geometry"],
-                            date_string=date_string,
-                            max_cloud_cover=max_cloud_percent,
-                            satellite_params=satellite_sensor_params,
-                            time_per_image=time_per_image,
-                            period_time_break=period_time_break,
-                            width=image_size,
-                            view_params=view_param
-                        )
-                        st.session_state["result_gif_image"] = result_gif_image
-                        result_gif_image = None
+def create_powered_by_menu():
+    with st.expander("powered by:"):
+        st.write("element-earth STAC API from element84 to search images via pystac")
+        st.write("rio_tiller to read and render STAC/COG links into a real image")
+        st.write("streamlit-folium / folium / leaflet for the map")
+        st.write("geocode.maps to geocode address into positions")
+        st.write("Basemaps from Open Street Maps, Google and ESRI")
+        st.write("streamlit and streamlit cloud solution for UI and hosting")
+    st.write("This application does not collect data but use carefully ;)")
 
+def main():
+    startup_session_variables()
+
+    st.title("Satellite Image Viewer")
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.write("Search where to go below or drop a pin on map to get fresh images")
+    with col3:
+        st.write("[Code on GitHub](https://github.com/rupestre-campos/satellite-image-viewer)")
+    satellite_sensor = ste.radio(
+        "Satellite",
+        options=sorted(list(app_config_data.satelites.keys())),
+        index=app_config_data.default_satellite_choice_index,
+        key="satellite"
+    )
+    satellite_sensor_params = app_config_data.satelites.get(satellite_sensor)
+    options_menu_values = create_options_menu(satellite_sensor_params)
+    view_param = options_menu_values["view_param"]
+    image_range = options_menu_values["image_range"]
+    colormap = options_menu_values["colormap"]
+    color_formula = options_menu_values["color_formula"]
+    start_date = datetime.strptime(
+        satellite_sensor_params.get("start_date"),
+        "%Y-%m-%d"
+    )
+    end_date = datetime.strptime(
+        satellite_sensor_params.get("end_date"),
+        "%Y-%m-%d"
+    )
+
+    col1, col2 = st.columns(2)
+    with col1:
+        address_to_search = ste.text_input(
+            "Search address, city, state or country",
+            value=app_config_data.default_start_address,
+            placeholder="John Doe st",
+            key="address",
+            max_chars=app_config_data.address_max_chars
+        )
+
+        start_date = ste.date_input(
+            "Start date",
+            value=start_date,
+            min_value=start_date,
+            max_value=end_date,
+            format="YYYY-MM-DD",
+            key="start-date"
+        )
+    with col2:
+        max_cloud_percent = ste.number_input(
+            "Maximum cloud cover (%)",
+            min_value=0.0,
+            max_value=100.0,
+            value=app_config_data.default_cloud_cover,
+            step=app_config_data.cloud_cover_step,
+            key="cloud-perc"
+        )
+
+        end_date = ste.date_input(
+            "End date",
+            value=end_date,
+            min_value=start_date,
+            max_value=end_date,
+            format="YYYY-MM-DD",
+            key="end-date"
+        )
+        if end_date <= start_date:
+            end_date = start_date + timedelta(days=1)
+
+    selected_dates = (start_date, end_date)
+    date_string = create_datestring_from_selected_dates(selected_dates)
+
+    create_gif_menu(date_string, satellite_sensor_params, max_cloud_percent, view_param)
 
     warning_area_user_input_location = st.empty()
     warning_area_user_input = st.empty()
@@ -397,7 +469,7 @@ def main():
             "geometry": buffer_point(
                 parsed_location["latitude"],
                 parsed_location["longitude"],
-                point_buffer_width
+                app_config_data.buffer_width
             )
         }
         st.session_state["result_gif_image"] = {}
@@ -428,6 +500,12 @@ def main():
         with col1:
             create_download_zip_button(image_data["zip_file"], image_data["name"])
 
+        web_map = WebMap()
+        web_map.add_draw_support()
+        web_map.add_base_map(app_config_data.google_basemap, "google satellite", "google", show=True)
+        web_map.add_base_map(app_config_data.open_street_maps, "open street maps", "open street maps")
+        web_map.add_base_map(app_config_data.esri_basemap, "esri satellite", "esri")
+
         web_map.add_image(
             image_data["image"],
             image_data["bounds"],
@@ -438,9 +516,10 @@ def main():
     with col2:
         if st.session_state["result_gif_image"]:
             create_download_gif_button(st.session_state["result_gif_image"])
-    web_map.add_layer_control()
-    user_draw = web_map.render_web_map(pixelated=pixelate_image)
 
+    web_map.add_layer_control()
+    user_draw = web_map.render_web_map(pixelated=True)
+    create_powered_by_menu()
     if user_draw["geometry"] != None \
         and st.session_state["user_draw"] != user_draw["geometry"]:
         st.session_state["user_draw"] = user_draw["geometry"]
@@ -452,23 +531,14 @@ def main():
             "geometry": buffer_point(
                 latitude,
                 longitude,
-                point_buffer_width
+                app_config_data.buffer_width
             )
         }
         st.session_state["result_gif_image"] = {}
         st.rerun()
         return
 
-    st.write("This application does not collect data but use carefully ;)")
-    st.write("Made with:  STAC API from element84 to search images via pystac")
-    st.write("rio_tiller to read and render STAC/COG links into a real image")
-    st.write("folium/leaflet for the map and drawing")
-    st.write("Open Street Maps street basemap")
-    st.write("[geocode](https://geocode.maps.co/) to geocode address into positions")
-    st.write("Satellite basemaps from google and esri")
-    st.write("streamlit and streamlit cloud solution for UI and hosting")
 
-    st.write("[Code on GitHub](https://github.com/rupestre-campos/satellite-image-viewer)")
     return True
 
 if __name__ == "__main__":
