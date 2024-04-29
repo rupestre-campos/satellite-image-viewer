@@ -478,6 +478,7 @@ def main():
             )
         }
         st.session_state["result_gif_image"] = {}
+        st.rerun()
 
     stac_items = catalog_search(
         app_config_data.max_stac_items,
