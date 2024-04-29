@@ -44,7 +44,8 @@ def search_place(address):
 
 @st.cache_data
 def create_gif(
-    feature_geojson,
+    coords,
+    buffer_width,
     date_string,
     max_cloud_cover,
     satellite_params,
@@ -53,6 +54,15 @@ def create_gif(
     width,
     view_params
     ):
+    feature_geojson = {
+        "type": "Feature",
+        "properties": {},
+        "geometry": buffer_point(
+            coords[0],
+            coords[1],
+            buffer_width
+        )
+    }
     satellite_view_params = satellite_params.copy()
     satellite_view_params.pop("assets")
     satellite_view_params.pop("expression")
@@ -76,7 +86,16 @@ def create_gif(
     return result
 
 @st.cache_data
-def catalog_search(max_items, feature_geojson, date_string, max_cloud_cover, collection, platforms):
+def catalog_search(max_items, coords, buffer_width, date_string, max_cloud_cover, collection, platforms):
+    feature_geojson = {
+        "type": "Feature",
+        "properties": {},
+        "geometry": buffer_point(
+            coords[0],
+            coords[1],
+            buffer_width
+        )
+    }
     params = {
         "feature_geojson": feature_geojson,
         "date_string": date_string,
@@ -91,13 +110,23 @@ def catalog_search(max_items, feature_geojson, date_string, max_cloud_cover, col
 @st.cache_data
 def mosaic_render(
     stac_list,
-    feature_geojson,
+    coords,
+    buffer_width,
     satellite_params,
     view_params,
     image_range,
     color_formula,
     colormap
     ):
+    feature_geojson = {
+        "type": "Feature",
+        "properties": {},
+        "geometry": buffer_point(
+            coords[0],
+            coords[1],
+            buffer_width
+        )
+    }
     params = satellite_params.copy()
     params.update({
         "zip_file": True,
@@ -186,7 +215,7 @@ def get_default_view_options_index(view_mode, options):
 def startup_session_variables():
     st.write('<style>div.row-widget.stRadio > div{flex-direction:row;}</style>', unsafe_allow_html=True)
     if "geometry" not in st.session_state:
-        st.session_state["geometry"] = {}
+        st.session_state["geometry"] = (0,0)
     if "user_draw" not in st.session_state:
         st.session_state["user_draw"] = {}
     if "where_to_go" not in st.session_state:
@@ -359,7 +388,8 @@ def create_gif_menu(date_string, satellite_sensor_params, max_cloud_percent, vie
             result_gif_image = create_gif(
                 period_time_break=period_time_break,
                 satellite_params=satellite_sensor_params,
-                feature_geojson=st.session_state["geometry"],
+                coords=st.session_state["geometry"],
+                buffer_width=app_config_data.buffer_width,
                 max_cloud_cover=max_cloud_percent,
                 time_per_image=time_per_image,
                 date_string=date_string,
@@ -468,21 +498,18 @@ def main():
         if parsed_location["warning"]:
             warning_area_user_input_location.write(f":red[Location not found, try different keywords]")
 
-        st.session_state["geometry"] = {
-            "type": "Feature",
-            "properties": {},
-            "geometry": buffer_point(
-                parsed_location["latitude"],
-                parsed_location["longitude"],
-                app_config_data.buffer_width
-            )
-        }
+        st.session_state["geometry"] = (
+            round(parsed_location["latitude"], app_config_data.float_precision),
+            round(parsed_location["longitude"], app_config_data.float_precision)
+        )
+
         st.session_state["result_gif_image"] = {}
         st.rerun()
 
     stac_items = catalog_search(
         app_config_data.max_stac_items,
         st.session_state["geometry"],
+        app_config_data.buffer_width,
         date_string,
         max_cloud_percent,
         satellite_sensor_params["collection_name"],
@@ -495,6 +522,7 @@ def main():
         image_data = mosaic_render(
             stac_items,
             st.session_state["geometry"],
+            app_config_data.buffer_width,
             satellite_sensor_params,
             view_param,
             image_range,
@@ -512,8 +540,16 @@ def main():
             image_data["bounds"],
             satellite_sensor_params["name"],
             )
-
-        web_map.add_polygon(st.session_state["geometry"])
+        feature_geojson = {
+            "type": "Feature",
+            "properties": {},
+            "geometry": buffer_point(
+                st.session_state["geometry"][0],
+                st.session_state["geometry"][1],
+                app_config_data.buffer_width
+            )
+        }
+        web_map.add_polygon(feature_geojson)
     with col2:
         if st.session_state["result_gif_image"]:
             create_download_gif_button(st.session_state["result_gif_image"])
@@ -526,15 +562,11 @@ def main():
         st.session_state["user_draw"] = user_draw["geometry"]
         longitude = user_draw["geometry"]["coordinates"][0]
         latitude = user_draw["geometry"]["coordinates"][1]
-        st.session_state["geometry"] = {
-            "type": "Feature",
-            "properties": {},
-            "geometry": buffer_point(
-                latitude,
-                longitude,
-                app_config_data.buffer_width
-            )
-        }
+        st.session_state["geometry"] = (
+            round(latitude, app_config_data.float_precision),
+            round(longitude, app_config_data.float_precision)
+        )
+
         st.session_state["result_gif_image"] = {}
         st.rerun()
 
