@@ -9,6 +9,7 @@ class AppConfig:
         self.esri_basemap = os.getenv("ESRI_BASEMAP", "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}")
         self.buffer_width = int(os.getenv("BUFFER_WIDTH", "3000"))
         self.buffer_max_width = int(os.getenv("BUFFER_MAX_WIDTH", "3000"))
+        self.float_precision = int(os.getenv("FLOAT_PRECISION", 6))
         self.geocoder_url = os.getenv("GEOCODER_API_URL", "https://nominatim.openstreetmap.org/search")
         self.geocoder_api_key = os.getenv("GEOCODER_API_KEY", "abcd")
         self.default_start_address = os.getenv("DEFAULT_START_ADDRESS", "San Francisco CA")
