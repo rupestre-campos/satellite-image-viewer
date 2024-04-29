@@ -412,6 +412,7 @@ def create_powered_by_menu():
 def main():
     startup_session_variables()
     web_map = WebMap()
+    web_map.add_fullscreen()
     web_map.add_draw_support()
     web_map.add_base_map(app_config_data.google_basemap, "google satellite", "google", show=True)
     web_map.add_base_map(app_config_data.open_street_maps, "open street maps", "open street maps")
