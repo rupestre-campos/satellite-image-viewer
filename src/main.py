@@ -536,8 +536,6 @@ def main():
         }
         st.session_state["result_gif_image"] = {}
         st.rerun()
-        return
-
 
     return True
 

@@ -49,7 +49,12 @@ class WebMap:
         ).add_to(self.web_map)
 
     def _streamlit_render(self, pixelated):
-        return st_folium(self.web_map, use_container_width=True, pixelated=pixelated)
+        return st_folium(
+            self.web_map,
+            use_container_width=True,
+            pixelated=pixelated,
+            returned_objects=["last_active_drawing"],
+        )
 
     def render_web_map(self, pixelated=True):
         user_data = self._streamlit_render(pixelated)
