@@ -40,6 +40,12 @@ def test_web_map_draw(web_map):
     draw_child = [item for item in map_children if item.startswith('draw')]
     assert len(draw_child) == 1
 
+def test_web_map_fullscreen(web_map):
+    web_map.add_fullscreen()
+    map_children = list(web_map.web_map._children.keys())
+    fullscreen_child = [item for item in map_children if item.startswith('fullscreen')]
+    assert len(fullscreen_child) == 1
+
 def test_render_web_map_empty(web_map):
     assert web_map.render_web_map() == {"geometry": None}
 
