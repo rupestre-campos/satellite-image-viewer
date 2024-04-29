@@ -14,6 +14,7 @@ class ReadSTAC:
         self.default_crs = "EPSG:4326"
         self.formats = {"PNG":"PGW", "JPEG":"JGW"}
         self.colormaps = cmap.list()
+        self.float_precision = 5
 
     @staticmethod
     def __tiler(item, *args, **kwargs):
@@ -27,7 +28,7 @@ class ReadSTAC:
         return np.asarray(image)
 
     def __get_image_bounds(self, image):
-        left, bottom, right, top = [i for i in image.bounds]
+        left, bottom, right, top = [round(i, self.float_precision) for i in image.bounds]
         bounds_4326 = warp.transform_bounds(
             src_crs=image.crs,
             dst_crs=self.default_crs,
@@ -36,7 +37,7 @@ class ReadSTAC:
             right=right,
             top=top
         )
-
+        bounds_4326 = [round(i, self.float_precision) for i in bounds_4326]
         return [[bounds_4326[1], bounds_4326[0]], [bounds_4326[3], bounds_4326[2]]]
 
     def __get_world_file_content(self, image_bounds, image_data):
