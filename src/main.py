@@ -424,12 +424,16 @@ def main():
         st.write("Search where to go below or drop a pin on map to get fresh images")
     with col3:
         st.write("[Code on GitHub](https://github.com/rupestre-campos/satellite-image-viewer)")
-    satellite_sensor = ste.radio(
-        "Satellite",
-        options=sorted(list(app_config_data.satelites.keys())),
-        index=app_config_data.default_satellite_choice_index,
-        key="satellite"
-    )
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        satellite_sensor = ste.radio(
+            "Satellite",
+            options=sorted(list(app_config_data.satelites.keys())),
+            index=app_config_data.default_satellite_choice_index,
+            key="satellite"
+        )
+    with col2:
+        search_place_type = ste.radio("Searh location", optios=["address", "coordinate"])
     satellite_sensor_params = app_config_data.satelites.get(satellite_sensor)
     options_menu_values = create_options_menu(satellite_sensor_params)
     view_param = options_menu_values["view_param"]
@@ -447,14 +451,30 @@ def main():
 
     col1, col2 = st.columns(2)
     with col1:
-        address_to_search = ste.text_input(
-            "Search address, city, state or country",
-            value=app_config_data.default_start_address,
-            placeholder="John Doe st",
-            key="address",
-            max_chars=app_config_data.address_max_chars
-        )
+        if search_place_type=="address":
+            address_to_search = ste.text_input(
+                "Search address, city, state or country",
+                value=app_config_data.default_start_address,
+                placeholder="John Doe st",
+                key="address",
+                max_chars=app_config_data.address_max_chars
+            )
 
+        if search_place_type=="coordinate":
+            latitude = ste.number_input(
+                "Latitude",
+                value=0,
+                min_value=-90,
+                max_value=90,
+                key="lat"
+                )
+            longitude = ste.number_input(
+                "Longitude",
+                value=0,
+                min_value=-180,
+                max_value=180,
+                key="long"
+                )
         start_date = ste.date_input(
             "Start date",
             value=start_date,
@@ -492,7 +512,7 @@ def main():
     warning_area_user_input_location = st.empty()
     warning_area_user_input = st.empty()
 
-    if address_to_search != st.session_state["where_to_go"]:
+    if address_to_search != st.session_state["where_to_go"] and search_place_type=="address":
         st.session_state["where_to_go"] = address_to_search
         location = search_place(address_to_search)
         parsed_location = parse_location(location)
