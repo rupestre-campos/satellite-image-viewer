@@ -17,19 +17,41 @@ st.set_page_config(
     page_icon=":satellite:",
     layout="wide",
 )
-worker_catalog_searcher = CatalogSearcher(app_config_data.stac_url)
-worker_image_renderer = ImageRenderer()
-colormaps = sorted(worker_image_renderer.colormaps)
-worker_point_bufferer = PointBufferer()
-worker_address_searcher = AddressSearcher(
+
+@st.cache_resource
+def get_catalog_searcher():
+    return CatalogSearcher(app_config_data.stac_url)
+
+@st.cache_resource
+def get_point_bufferer():
+    return PointBufferer()
+
+@st.cache_resource
+def get_address_searcher():
+    return AddressSearcher(
     api_url=app_config_data.geocoder_url,
     api_key=app_config_data.geocoder_api_key
-
 )
-worker_animation_creator = AnimationCreator(
+
+@st.cache_resource
+def get_image_renderer():
+    return ImageRenderer()
+
+@st.cache_resource
+def get_animation_creator(_worker_catalog_searcher, _worker_image_renderer):
+    return AnimationCreator(
     catalog_searcher=worker_catalog_searcher,
     image_renderer=worker_image_renderer
 )
+
+worker_catalog_searcher = get_catalog_searcher()
+worker_point_bufferer = get_point_bufferer()
+worker_address_searcher = get_address_searcher()
+worker_image_renderer = get_image_renderer()
+worker_animation_creator = get_animation_creator(worker_catalog_searcher, worker_image_renderer)
+
+colormaps = sorted(worker_image_renderer.colormaps)
+
 
 @st.cache_data
 def buffer_point(latitude, longitude, distance):
