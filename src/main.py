@@ -116,7 +116,8 @@ def mosaic_render(
     view_params,
     image_range,
     color_formula,
-    colormap
+    colormap,
+    enhance_image
     ):
     feature_geojson = {
         "type": "Feature",
@@ -134,6 +135,7 @@ def mosaic_render(
         "feature_geojson": feature_geojson,
         "stac_list": stac_list,
         "image_as_array": True,
+        "enhance_image": enhance_image
     })
     params.pop("assets")
     params.pop("expression")
@@ -228,6 +230,7 @@ def create_options_menu(satellite_sensor_params):
     colormap = ""
     view_modes = ["assets", "expression"]
     with st.expander("options"):
+        enhance_image = ste.checkbox("enhance image resolution?")
         col1, col2 = st.columns(2)
         with col1:
             col3, col4 = st.columns(2)
@@ -348,6 +351,7 @@ def create_options_menu(satellite_sensor_params):
             "color_formula": color_formula,
             "image_range": image_range,
             "view_param": view_param,
+            "enhance_image": enhance_image
         }
 
 def create_gif_menu(date_string, satellite_sensor_params, max_cloud_percent, view_param):
@@ -436,6 +440,7 @@ def main():
     image_range = options_menu_values["image_range"]
     colormap = options_menu_values["colormap"]
     color_formula = options_menu_values["color_formula"]
+    enhance_image = options_menu_values["enhance_image"]
     start_date = datetime.strptime(
         satellite_sensor_params.get("start_date"),
         "%Y-%m-%d"
@@ -528,7 +533,9 @@ def main():
             view_param,
             image_range,
             color_formula,
-            colormap)
+            colormap,
+            enhance_image
+            )
 
         st.write(f'Image ID: {image_data["name"]}')
 

@@ -4,7 +4,7 @@ WORKDIR /src
 
 COPY ./src /src
 COPY requirements.txt /src
-
+RUN apt-get update && apt-get install -y git
 RUN pip install --no-cache-dir --upgrade pip -r requirements.txt
 
 # Return to the working directory

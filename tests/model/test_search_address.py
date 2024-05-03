@@ -6,10 +6,15 @@ def test_init_search_address():
         api_url="https://nominatim.openstreetmap.org/search", api_key="abcd")
     assert isinstance(search_address, SearchAddress)
 
-def test_search_address():
+def test_search_address(requests_mock):
     test_address = "Sao paulo SP"
+    api_key = "abcd"
+    requests_mock.get(
+        f"https://nominatim.openstreetmap.org/search?api_key={api_key}&q={test_address}&format=json",
+        json=[{"lat":1,"lon":1}]
+    )
     search_address = SearchAddress(
-        api_url="https://nominatim.openstreetmap.org/search", api_key="abcd")
+        api_url="https://nominatim.openstreetmap.org/search", api_key=api_key)
     result = search_address.search_address(test_address)
     assert isinstance(result, tuple)
     assert result != (0,0)

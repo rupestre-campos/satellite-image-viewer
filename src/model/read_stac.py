@@ -7,7 +7,9 @@ from rasterio import warp
 from rio_tiler.io import STACReader
 from rio_tiler.mosaic import mosaic_reader
 from rio_tiler.colormap import cmap
+from ISR.models import RDN
 
+rdn = RDN(weights='psnr-small')
 
 class ReadSTAC:
     def __init__(self):
@@ -27,6 +29,18 @@ class ReadSTAC:
         image = Image.open(image)
         return np.asarray(image)
 
+    @staticmethod
+    def __array_to_png_string(image_array, image_format):
+        # Convert the array to an image
+        image = Image.fromarray(image_array)
+
+        # Save the image to a bytes buffer
+        with io.BytesIO() as buffer:
+            image.save(buffer, format=image_format)
+            png_string = buffer.getvalue()
+
+        return png_string
+
     def __get_image_bounds(self, image):
         left, bottom, right, top = [round(i, self.float_precision) for i in image.bounds]
         bounds_4326 = warp.transform_bounds(
@@ -40,12 +54,13 @@ class ReadSTAC:
         bounds_4326 = [round(i, self.float_precision) for i in bounds_4326]
         return [[bounds_4326[1], bounds_4326[0]], [bounds_4326[3], bounds_4326[2]]]
 
-    def __get_world_file_content(self, image_bounds, image_data):
+    def __get_world_file_content(self, image_bounds, image):
+        image = self.__image_as_array(image)
         return (
-            f"{abs(image_bounds[0][1] - image_bounds[1][1]) / image_data.width}\n"
+            f"{abs(image_bounds[0][1] - image_bounds[1][1]) / image.shape[1]}\n"
             f"0.0\n"
             f"0.0\n"
-            f"{-abs(image_bounds[0][0] - image_bounds[1][0]) / image_data.height}\n"
+            f"{-abs(image_bounds[0][0] - image_bounds[1][0]) / image.shape[0]}\n"
             f"{image_bounds[0][1]}\n"
             f"{image_bounds[1][0]}\n"
         )
@@ -105,7 +120,22 @@ class ReadSTAC:
         image = self.__post_process_image(image_data, params)
         image = self.__render_image(image, params)
         image_bounds = self.__get_image_bounds(image_data)
-        world_file = self.__get_world_file_content(image_bounds, image_data)
+
+        if params.get("enhance_image"):
+            image = self.__image_as_array(image)
+            alpha_channel = image[:, :, 3]
+            image = rdn.predict(image[:,:,:3], by_patch_of_size=50)
+
+            alpha_channel_resized = np.array(Image.fromarray(alpha_channel).resize((image.shape[1], image.shape[0]), Image.NEAREST))
+
+            # Normalize alpha channel values to range [0, 1]
+            #alpha_channel_resized = alpha_channel_resized / 255.0
+
+            # Add the alpha channel back to the image
+            image = np.dstack((image, alpha_channel_resized))
+            image = self.__array_to_png_string(image, params.get("image_format"))
+
+        world_file = self.__get_world_file_content(image_bounds, image)
 
         if params.get("zip_file"):
             zip_file = self.__create_zip_geoimage(
@@ -118,6 +148,7 @@ class ReadSTAC:
 
         if params.get("image_as_array"):
             image = self.__image_as_array(image)
+
 
         if params.get("zip_file"):
             return {
