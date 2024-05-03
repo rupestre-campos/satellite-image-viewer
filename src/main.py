@@ -326,6 +326,7 @@ def create_options_menu(satellite_sensor_params):
                 "color_formula": color_formula,
                 "image_range": image_range,
                 "view_param": view_param,
+                "enhance_image": enhance_image
             }
 
         col1, col2 = st.columns(2)
@@ -432,12 +433,16 @@ def create_gif_menu(date_string, satellite_sensor_params, max_cloud_percent, vie
 
 def create_powered_by_menu():
     with st.expander("powered by:"):
-        st.write("element-earth STAC API from element84 to search images via pystac")
+        st.write("Satellites: ESA Sentinel 2 & NASA Landsat 4,5,6,8,9 hosted on S3 AWS")
+        st.write("(Note: Landsat is not free of charge.)")
+        st.write("Earth Search STAC API from element84 to search images via pystac")
         st.write("rio_tiller to read and render STAC/COG links into a real image")
         st.write("streamlit-folium / folium / leaflet for the map")
         st.write("geocode.maps to geocode address into positions")
         st.write("Basemaps from Open Street Maps, Google and ESRI")
         st.write("streamlit and streamlit cloud solution for UI and hosting")
+        st.write("pypi ISR for image enhancement")
+
     st.write("This application does not collect data but use carefully ;)")
 
 def main():
