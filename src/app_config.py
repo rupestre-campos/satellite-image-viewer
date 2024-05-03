@@ -38,7 +38,7 @@ class AppConfig:
         self.default_composition_index = int(os.getenv("DEFAULT_COMPOSITION_INDEX", 0))
         self.default_composition_value_for_index = os.getenv("DEFAULT_COMPOSITION_VALUE_INDEX", "ndvi")
         self.default_composition_value_for_composite = os.getenv("DEFAULT_COMPOSITION_VALUE_COMPOSITE", "real-color (RGB)")
-
+        self.enhance_image_default = os.getenv("DEFAULT_ENHANCE_IMAGE", "False").lower() in ('true', '1', 't')
 
     def __get_satellites_params(self):
         params = {}
@@ -59,10 +59,14 @@ class AppConfig:
         band_max_value = int(os.getenv("SENTINEL_BAND_MAX_VALUE", 4000))
         index_min_value = float(os.getenv("SENTINEL_INDEX_MIN_VALUE", -1))
         index_max_value = float(os.getenv("SENTINEL_INDEX_MAX_VALUE", 1))
+        coastal = os.getenv("SENTINEL_COASTAL_CHANNEL_ASSET_NAME", "nir")
         nir = os.getenv("SENTINEL_NIR_CHANNEL_ASSET_NAME", "nir")
         red = os.getenv("SENTINEL_R_CHANNEL_ASSET_NAME", "red")
         green = os.getenv("SENTINEL_G_CHANNEL_ASSET_NAME", "green")
         blue = os.getenv("SENTINEL_B_CHANNEL_ASSET_NAME", "blue")
+        nir08 = os.getenv("SENTINEL_NIR08_CHANNEL_ASSET_NAME", "nir08")
+        swir16 = os.getenv("SENTINEL_SWIR16_CHANNEL_ASSET_NAME", "swir16")
+        swir22 = os.getenv("SENTINEL_SWIR22_CHANNEL_ASSET_NAME", "swir22")
         color_formula_sigmoidal = float(os.getenv("SENTINEL_COLOR_FORMULA_SIGMOIDAL", "5"))
         color_formula_sigmoidal_gain = float(os.getenv("SENTINEL_COLOR_FORMULA_SIGMOIDAL_GAIN", "0.1"))
         color_formula_gamma = float(os.getenv("SENTINEL_COLOR_FORMULA_GAMMA", "1.2"))
@@ -95,12 +99,33 @@ class AppConfig:
                     red,
                     green
                 ),
+                "agriculture (SwirNirB)": (
+                    swir16,
+                    nir,
+                    blue
+                ),
+                "geology": (
+                    swir22,
+                    swir16,
+                    blue
+                ),
+                "thermal (SWIR)": (
+                    swir22,
+                    nir08,
+                    red
+                ),
+                "bathymetry": (
+                    red,
+                    green,
+                    coastal
+                )
             },
             "expression": {
                 "ndvi": f"({nir}-{red})/({nir}+{red})",
                 "ndwi": f"({red}-{nir})/({red}+{nir})",
                 "evi": f"2.5*(({nir}-{red})/(({nir}-6*{red}-7.5*{blue})+1))",
-                "savi": f"(({nir}-{red})/({nir}+{red}+0.5))*1.5"
+                "savi": f"(({nir}-{red})/({nir}+{red}+0.5))*1.5",
+                "nbr": f"({nir}-{swir22})/({nir}+{swir22})"
             },
             "index_min_value": index_min_value,
             "index_max_value": index_max_value,
@@ -134,6 +159,8 @@ class AppConfig:
         red = os.getenv("LANDSAT_R_CHANNEL_ASSET_NAME", "red")
         green = os.getenv("LANDSAT_G_CHANNEL_ASSET_NAME", "green")
         blue = os.getenv("LANDSAT_B_CHANNEL_ASSET_NAME", "blue")
+        swir16 = os.getenv("LANDSAT_SWIR16_CHANNEL_ASSET_NAME", "swir16")
+        swir22 = os.getenv("LANDSAT_SWIR22_CHANNEL_ASSET_NAME", "swir22")
         color_formula_sigmoidal = float(os.getenv("LANDSAT_COLOR_FORMULA_SIGMOIDAL", "10"))
         color_formula_sigmoidal_gain = float(os.getenv("LANDSAT_COLOR_FORMULA_SIGMOIDAL_GAIN", "0.01"))
         color_formula_gamma = float(os.getenv("LANDSAT_COLOR_FORMULA_GAMMA", "1.4"))
@@ -166,12 +193,33 @@ class AppConfig:
                     red,
                     green
                 ),
+                "agriculture (SwirNirB)": (
+                    swir16,
+                    nir,
+                    blue
+                ),
+                "geology": (
+                    swir22,
+                    swir16,
+                    blue
+                ),
+                "thermal (SWIR)": (
+                    swir22,
+                    nir,
+                    red
+                ),
+                "bathymetry": (
+                    nir,
+                    green,
+                    blue
+                )
             },
             "expression": {
                 "ndvi": f"({nir}-{red})/({nir}+{red})",
                 "ndwi": f"({red}-{nir})/({red}+{nir})",
                 "evi": f"2.5*(({nir}-{red})/(({nir}-6*{red}-7.5*{blue})+1))",
-                "savi": f"(({nir}-{red})/({nir}+{red}+0.5))*1.5"
+                "savi": f"(({nir}-{red})/({nir}+{red}+0.5))*1.5",
+                "nbr": f"({nir}-{swir22})/({nir}+{swir22})"
             },
             "index_min_value": index_min_value,
             "index_max_value": index_max_value,

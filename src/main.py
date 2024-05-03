@@ -17,19 +17,41 @@ st.set_page_config(
     page_icon=":satellite:",
     layout="wide",
 )
-worker_catalog_searcher = CatalogSearcher(app_config_data.stac_url)
-worker_image_renderer = ImageRenderer()
-colormaps = sorted(worker_image_renderer.colormaps)
-worker_point_bufferer = PointBufferer()
-worker_address_searcher = AddressSearcher(
+
+@st.cache_resource
+def get_catalog_searcher():
+    return CatalogSearcher(app_config_data.stac_url)
+
+@st.cache_resource
+def get_point_bufferer():
+    return PointBufferer()
+
+@st.cache_resource
+def get_address_searcher():
+    return AddressSearcher(
     api_url=app_config_data.geocoder_url,
     api_key=app_config_data.geocoder_api_key
-
 )
-worker_animation_creator = AnimationCreator(
+
+@st.cache_resource
+def get_image_renderer():
+    return ImageRenderer()
+
+@st.cache_resource
+def get_animation_creator(_worker_catalog_searcher, _worker_image_renderer):
+    return AnimationCreator(
     catalog_searcher=worker_catalog_searcher,
     image_renderer=worker_image_renderer
 )
+
+worker_catalog_searcher = get_catalog_searcher()
+worker_point_bufferer = get_point_bufferer()
+worker_address_searcher = get_address_searcher()
+worker_image_renderer = get_image_renderer()
+worker_animation_creator = get_animation_creator(worker_catalog_searcher, worker_image_renderer)
+
+colormaps = sorted(worker_image_renderer.colormaps)
+
 
 @st.cache_data
 def buffer_point(latitude, longitude, distance):
@@ -116,7 +138,8 @@ def mosaic_render(
     view_params,
     image_range,
     color_formula,
-    colormap
+    colormap,
+    enhance_image
     ):
     feature_geojson = {
         "type": "Feature",
@@ -134,6 +157,7 @@ def mosaic_render(
         "feature_geojson": feature_geojson,
         "stac_list": stac_list,
         "image_as_array": True,
+        "enhance_image": enhance_image
     })
     params.pop("assets")
     params.pop("expression")
@@ -228,6 +252,12 @@ def create_options_menu(satellite_sensor_params):
     colormap = ""
     view_modes = ["assets", "expression"]
     with st.expander("options"):
+        enhance_image = ste.checkbox(
+            "enhance image resolution",
+            value=app_config_data.enhance_image_default,
+            key="enhance"
+        )
+
         col1, col2 = st.columns(2)
         with col1:
             col3, col4 = st.columns(2)
@@ -296,6 +326,7 @@ def create_options_menu(satellite_sensor_params):
                 "color_formula": color_formula,
                 "image_range": image_range,
                 "view_param": view_param,
+                "enhance_image": enhance_image
             }
 
         col1, col2 = st.columns(2)
@@ -348,6 +379,7 @@ def create_options_menu(satellite_sensor_params):
             "color_formula": color_formula,
             "image_range": image_range,
             "view_param": view_param,
+            "enhance_image": enhance_image
         }
 
 def create_gif_menu(date_string, satellite_sensor_params, max_cloud_percent, view_param):
@@ -401,12 +433,16 @@ def create_gif_menu(date_string, satellite_sensor_params, max_cloud_percent, vie
 
 def create_powered_by_menu():
     with st.expander("powered by:"):
-        st.write("element-earth STAC API from element84 to search images via pystac")
+        st.write("Satellites: ESA Sentinel 2 & NASA Landsat 4,5,6,8,9 hosted on S3 AWS")
+        st.write("(Note: Landsat is not free of charge.)")
+        st.write("Earth Search STAC API from element84 to search images via pystac")
         st.write("rio_tiller to read and render STAC/COG links into a real image")
         st.write("streamlit-folium / folium / leaflet for the map")
         st.write("geocode.maps to geocode address into positions")
         st.write("Basemaps from Open Street Maps, Google and ESRI")
         st.write("streamlit and streamlit cloud solution for UI and hosting")
+        st.write("pypi ISR for image enhancement")
+
     st.write("This application does not collect data but use carefully ;)")
 
 def main():
@@ -440,6 +476,7 @@ def main():
     image_range = options_menu_values["image_range"]
     colormap = options_menu_values["colormap"]
     color_formula = options_menu_values["color_formula"]
+    enhance_image = options_menu_values["enhance_image"]
     start_date = datetime.strptime(
         satellite_sensor_params.get("start_date"),
         "%Y-%m-%d"
@@ -548,7 +585,9 @@ def main():
             view_param,
             image_range,
             color_formula,
-            colormap)
+            colormap,
+            enhance_image
+            )
 
         st.write(f'Image ID: {image_data["name"]}')
 
