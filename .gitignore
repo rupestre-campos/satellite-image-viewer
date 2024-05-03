@@ -161,3 +161,4 @@ cython_debug/
 
 tests/data/screenshot*
 start_streamlit.sh
+log_file
