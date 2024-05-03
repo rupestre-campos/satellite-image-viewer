@@ -230,7 +230,11 @@ def create_options_menu(satellite_sensor_params):
     colormap = ""
     view_modes = ["assets", "expression"]
     with st.expander("options"):
-        enhance_image = ste.checkbox("enhance image resolution?")
+        enhance_image = ste.checkbox(
+            "enhance image resolution",
+            value=app_config_data.enhance_image_default
+        )
+
         col1, col2 = st.columns(2)
         with col1:
             col3, col4 = st.columns(2)
