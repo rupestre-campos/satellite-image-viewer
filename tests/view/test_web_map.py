@@ -46,6 +46,12 @@ def test_web_map_fullscreen(web_map):
     fullscreen_child = [item for item in map_children if item.startswith('fullscreen')]
     assert len(fullscreen_child) == 1
 
+def test_web_map_mouse(web_map):
+    web_map.add_mouse_location()
+    map_children = list(web_map.web_map._children.keys())
+    mouse_child = [item for item in map_children if item.startswith('mouse')]
+    assert len(mouse_child) == 1
+
 def test_render_web_map_empty(web_map):
     assert web_map.render_web_map() == {"geometry": None}
 
