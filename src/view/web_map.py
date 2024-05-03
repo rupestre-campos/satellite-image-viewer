@@ -1,9 +1,17 @@
 import folium
-from folium.plugins import Draw, Fullscreen
+from folium.plugins import Draw, Fullscreen, MousePosition
 from streamlit_folium import st_folium
 
+
 class WebMap:
-    def __init__(self, center_y=44.05, center_x=-121.42, zoom_start=12, zoom_control=True, min_zoom=6):
+    def __init__(
+            self,
+            center_y=44.05,
+            center_x=-121.42,
+            zoom_start=12,
+            zoom_control=True,
+            min_zoom=6
+        ):
         self.web_map = folium.Map(
             location=[center_y, center_x],
             zoom_start=zoom_start,
@@ -17,6 +25,11 @@ class WebMap:
     def add_fullscreen(self):
         Fullscreen(
             position="topleft",
+        ).add_to(self.web_map)
+
+    def add_mouse_location(self):
+        MousePosition(
+            position="topright",
         ).add_to(self.web_map)
 
     def add_layer_control(self):

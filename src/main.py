@@ -450,6 +450,7 @@ def main():
     web_map = WebMap()
     web_map.add_fullscreen()
     web_map.add_draw_support()
+    web_map.add_mouse_location()
     web_map.add_base_map(app_config_data.google_basemap, "google satellite", "google", show=True)
     web_map.add_base_map(app_config_data.open_street_maps, "open street maps", "open street maps")
     web_map.add_base_map(app_config_data.esri_basemap, "esri satellite", "esri")
@@ -460,6 +461,7 @@ def main():
         st.write("Search where to go below or drop a pin on map to get fresh images")
     with col3:
         st.write("[Code on GitHub](https://github.com/rupestre-campos/satellite-image-viewer)")
+
     col1, col2, col3 = st.columns(3)
     with col1:
         satellite_sensor = ste.radio(
@@ -469,7 +471,16 @@ def main():
             key="satellite"
         )
     with col2:
-        search_place_type = ste.radio("Searh location", optios=["address", "coordinate"])
+        search_place_type = ste.radio(
+            "Searh type",
+            options=["address", "coordinates"],
+            key="search-type")
+    with col3:
+        if search_place_type == "address":
+            st.write("Enter address location below to search")
+        if search_place_type == "coordinates":
+            st.write("Drop a pin on map to search")
+
     satellite_sensor_params = app_config_data.satelites.get(satellite_sensor)
     options_menu_values = create_options_menu(satellite_sensor_params)
     view_param = options_menu_values["view_param"]
@@ -488,6 +499,7 @@ def main():
 
     col1, col2 = st.columns(2)
     with col1:
+        address_to_search = ""
         if search_place_type=="address":
             address_to_search = ste.text_input(
                 "Search address, city, state or country",
@@ -497,29 +509,31 @@ def main():
                 max_chars=app_config_data.address_max_chars
             )
 
-        if search_place_type=="coordinate":
-            latitude = ste.number_input(
-                "Latitude",
-                value=0,
-                min_value=-90,
-                max_value=90,
-                key="lat"
-                )
-            longitude = ste.number_input(
-                "Longitude",
-                value=0,
-                min_value=-180,
-                max_value=180,
-                key="long"
-                )
-        start_date = ste.date_input(
-            "Start date",
-            value=start_date,
-            min_value=start_date,
-            max_value=end_date,
-            format="YYYY-MM-DD",
-            key="start-date"
-        )
+        if search_place_type=="coordinates":
+            geom = st.session_state.get("geometry", (0.0, 0.0))
+
+            latitude = round(
+                float(st.query_params.get("lat", geom[0])),
+                app_config_data.float_precision
+            )
+            longitude = round(
+                float(st.query_params.get("lon", geom[1])),
+                app_config_data.float_precision
+            )
+            st.session_state["geometry"] = (
+                latitude,
+                longitude
+            )
+            st.write(f"Lat/Long: {latitude}/{longitude}")
+            st.query_params.update(
+                {
+                    "lat": latitude,
+                    "lon": longitude,
+                    "search-type": "coordinates"
+                }
+            )
+
+
     with col2:
         max_cloud_percent = ste.number_input(
             "Maximum cloud cover (%)",
@@ -530,6 +544,17 @@ def main():
             key="cloud-perc"
         )
 
+    col1, col2 = st.columns(2)
+    with col1:
+        start_date = ste.date_input(
+            "Start date",
+            value=start_date,
+            min_value=start_date,
+            max_value=end_date,
+            format="YYYY-MM-DD",
+            key="start-date"
+        )
+    with col2:
         end_date = ste.date_input(
             "End date",
             value=end_date,
@@ -549,7 +574,8 @@ def main():
     warning_area_user_input_location = st.empty()
     warning_area_user_input = st.empty()
 
-    if address_to_search != st.session_state["where_to_go"] and search_place_type=="address":
+    if address_to_search != st.session_state["where_to_go"] \
+        and search_place_type != "coordinates":
         st.session_state["where_to_go"] = address_to_search
         location = search_place(address_to_search)
         parsed_location = parse_location(location)
@@ -628,6 +654,7 @@ def main():
         )
 
         st.session_state["result_gif_image"] = {}
+        st.query_params.update({"lat": latitude, "lon":longitude, "search-type":"coordinates"})
         st.rerun()
 
     return True
