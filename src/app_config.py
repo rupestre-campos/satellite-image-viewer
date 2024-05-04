@@ -40,6 +40,7 @@ class AppConfig:
         self.default_composition_value_for_index = os.getenv("DEFAULT_COMPOSITION_VALUE_INDEX", "ndvi")
         self.default_composition_value_for_composite = os.getenv("DEFAULT_COMPOSITION_VALUE_COMPOSITE", "real-color (RGB)")
         self.enhance_image_default = os.getenv("DEFAULT_ENHANCE_IMAGE", "False").lower() in ('true', '1', 't')
+        self.enhance_image_passes = os.getenv("ENHANCE_IMAGE_PASSES", "1,2")
 
     def __get_satellites_params(self):
         params = {}
