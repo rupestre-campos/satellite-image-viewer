@@ -26,4 +26,8 @@ class CatalogSearcher:
         if params.get("platforms"):
             kwargs["query"].update({"platform":{"in": params.get("platforms")}})
 
-        return self.search_stac.get_items(**kwargs)
+        results = self.search_stac.get_items(**kwargs)
+
+        if params.get("collection") == "sentinel-1-grd":
+            results = [result for result in results if result.get("properties",{}).get("sar:instrument_mode","")=="IW"]
+        return results
