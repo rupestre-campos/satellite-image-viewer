@@ -290,6 +290,13 @@ def create_options_menu(satellite_sensor_params):
                 )
 
                 enhance_passes = round(int(enhance_power.strip("x")) ** (1/4))
+        with col4:
+            buffer_width = st.number_input(
+                "buffer radius",
+                min_value=100,
+                max_value=app_config_data.buffer_max_width,
+                value=app_config_data.buffer_width
+            )
 
         col1, col2 = st.columns(2)
         with col1:
@@ -360,7 +367,8 @@ def create_options_menu(satellite_sensor_params):
                 "image_range": image_range,
                 "view_param": view_param,
                 "enhance_image": enhance_image,
-                "enhance_passes": enhance_passes
+                "enhance_passes": enhance_passes,
+                "buffer_width": buffer_width
             }
 
         col1, col2 = st.columns(2)
@@ -414,10 +422,12 @@ def create_options_menu(satellite_sensor_params):
             "image_range": image_range,
             "view_param": view_param,
             "enhance_image": enhance_image,
-            "enhance_passes": enhance_passes
+            "enhance_passes": enhance_passes,
+            "buffer_width": buffer_width
         }
 
-def create_gif_menu(date_string, satellite_sensor_params, max_cloud_percent, view_param):
+def create_gif_menu(
+        date_string, satellite_sensor_params, max_cloud_percent, view_param, buffer_width):
     create_gif_button = False
     gif_check_box = False
     if satellite_sensor_params["name"].lower() in app_config_data.allowed_gif_satellite:
@@ -456,7 +466,7 @@ def create_gif_menu(date_string, satellite_sensor_params, max_cloud_percent, vie
                 period_time_break=period_time_break,
                 satellite_params=satellite_sensor_params,
                 coords=st.session_state["geometry"],
-                buffer_width=app_config_data.buffer_width,
+                buffer_width=buffer_width,
                 max_cloud_cover=max_cloud_percent,
                 time_per_image=time_per_image,
                 date_string=date_string,
@@ -523,6 +533,7 @@ def main():
     color_formula = options_menu_values["color_formula"]
     enhance_image = options_menu_values["enhance_image"]
     enhance_passes = options_menu_values["enhance_passes"]
+    buffer_width = options_menu_values["buffer_width"]
 
     start_date = datetime.strptime(
         satellite_sensor_params.get("start_date"),
@@ -607,7 +618,8 @@ def main():
     selected_dates = (start_date, end_date)
     date_string = create_datestring_from_selected_dates(selected_dates)
 
-    create_gif_menu(date_string, satellite_sensor_params, max_cloud_percent, view_param)
+    create_gif_menu(
+        date_string, satellite_sensor_params, max_cloud_percent, view_param, buffer_width)
 
     warning_area_user_input_location = st.empty()
     warning_area_user_input = st.empty()
@@ -631,7 +643,7 @@ def main():
     stac_items = catalog_search(
         app_config_data.max_stac_items,
         st.session_state["geometry"],
-        app_config_data.buffer_width,
+        buffer_width,
         date_string,
         max_cloud_percent,
         satellite_sensor_params["collection_name"],
@@ -645,7 +657,7 @@ def main():
         image_data = mosaic_render(
             stac_items,
             st.session_state["geometry"],
-            app_config_data.buffer_width,
+            buffer_width,
             satellite_sensor_params,
             view_param,
             image_range,
@@ -672,7 +684,7 @@ def main():
             "geometry": buffer_point(
                 st.session_state["geometry"][0],
                 st.session_state["geometry"][1],
-                app_config_data.buffer_width
+                buffer_width
             )
         }
         web_map.add_polygon(feature_geojson)
