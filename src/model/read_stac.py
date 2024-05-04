@@ -5,8 +5,10 @@ from PIL import Image
 import numpy as np
 from rasterio import warp
 from rio_tiler.io import STACReader
+from rio_tiler.models import ImageData
 from rio_tiler.mosaic import mosaic_reader
 from rio_tiler.colormap import cmap
+import numexpr as ne
 from ISR.models import RDN
 
 rdn = RDN(weights='psnr-small')
@@ -40,6 +42,43 @@ class ReadSTAC:
             png_string = buffer.getvalue()
 
         return png_string
+
+    @staticmethod
+    def __get_view_params(params):
+        if "assets" in params:
+            return "assets", params.get("assets")
+        if "expression" in params:
+            return "expression", params.get("expression")
+        if "RGB-expression" in params:
+            return "assets", params["RGB-expression"].get("assets")
+
+    @staticmethod
+    def __process_rgb_expression(image_data, params):
+        ctx = {}
+        for bdx, band in enumerate(params["RGB-expression"].get("assets")):
+            ctx[band] = image_data.data[bdx]
+        expression = params["RGB-expression"].get("expression").split(",")
+        return ImageData(
+            np.array(
+                [np.nan_to_num(ne.evaluate(band.strip(), local_dict=ctx)) for band in expression]
+            ),
+            image_data.mask,
+        )
+
+    @staticmethod
+    def __resize_alpha(alpha_channel, image):
+        return np.array(
+            Image.fromarray(alpha_channel).resize((image.shape[1], image.shape[0]), Image.NEAREST))
+
+    def __enhance_image(self, image, params):
+        image = self.__image_as_array(image)
+        alpha_channel = image[:, :, 3]
+        image = rdn.predict(image[:,:,:3], by_patch_of_size=50)
+
+        alpha_channel_resized = self.__resize_alpha(alpha_channel, image)
+
+        image = np.dstack((image, alpha_channel_resized))
+        return self.__array_to_png_string(image, params.get("image_format", "PNG"))
 
     def __get_image_bounds(self, image):
         left, bottom, right, top = [round(i, self.float_precision) for i in image.bounds]
@@ -79,7 +118,7 @@ class ReadSTAC:
         return zip_buffer.getvalue()
 
     def __post_process_image(self, image_data, params):
-        if params.get("assets"):
+        if params.get("assets") or params.get("RGB-expression"):
             return image_data.post_process(
                 in_range=((params.get("min_value"), params.get("max_value")),),
                 color_formula=params.get("color_formula"),
@@ -93,47 +132,38 @@ class ReadSTAC:
         )
 
     def __render_image(self, image, params):
-        if params.get("assets"):
+        if params.get("assets") or params.get("RGB-expression"):
             return image.render(img_format=params.get("image_format"))
-
-        colormap = cmap.get(params.get("colormap", "viridis"))
+        input_colormap = params.get("colormap", "viridis")
+        colormap = cmap.get(input_colormap)
         return image.render(
             img_format=params.get("image_format"),
             colormap=colormap
         )
 
     def render_mosaic_from_stac(self, params):
+        if params.get("image_format") not in self.formats:
+            raise ValueError("Format not accepted")
         args = (params.get("feature_geojson"), )
-        view_params = "assets" if params.get("assets") else "expression"
+        view_type, view_params  = self.__get_view_params(params)
         kwargs = {
-            view_params:  params.get(view_params),
+            view_type:  view_params,
             "max_size": params.get("max_size"),
             "nodata": params.get("nodata"),
             "asset_as_band": True
         }
-        if params.get("image_format") not in self.formats:
-            raise ValueError("Format not accepted")
-
         image_data, assets_used = mosaic_reader(
             params.get("stac_list"), self.__tiler, *args, **kwargs)
+        image_bounds = self.__get_image_bounds(image_data)
+
+        if params.get("RGB-expression"):
+            image_data = self.__process_rgb_expression(image_data, params)
 
         image = self.__post_process_image(image_data, params)
         image = self.__render_image(image, params)
-        image_bounds = self.__get_image_bounds(image_data)
 
         if params.get("enhance_image"):
-            image = self.__image_as_array(image)
-            alpha_channel = image[:, :, 3]
-            image = rdn.predict(image[:,:,:3], by_patch_of_size=50)
-
-            alpha_channel_resized = np.array(Image.fromarray(alpha_channel).resize((image.shape[1], image.shape[0]), Image.NEAREST))
-
-            # Normalize alpha channel values to range [0, 1]
-            #alpha_channel_resized = alpha_channel_resized / 255.0
-
-            # Add the alpha channel back to the image
-            image = np.dstack((image, alpha_channel_resized))
-            image = self.__array_to_png_string(image, params.get("image_format"))
+            image = self.__enhance_image(image, params)
 
         world_file = self.__get_world_file_content(image_bounds, image)
 
@@ -148,7 +178,6 @@ class ReadSTAC:
 
         if params.get("image_as_array"):
             image = self.__image_as_array(image)
-
 
         if params.get("zip_file"):
             return {

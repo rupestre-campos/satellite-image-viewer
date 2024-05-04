@@ -161,6 +161,8 @@ def mosaic_render(
     })
     params.pop("assets")
     params.pop("expression")
+    if "RGB-expression" in params:
+        params.pop("RGB-expression")
     params.update(view_params)
     params.update({"min_value":image_range[0], "max_value":image_range[1]})
     params.update({"color_formula": color_formula, "colormap":colormap})
@@ -214,7 +216,10 @@ def parse_location(location):
 def get_min_max_image_range(view_mode, satellite_sensor_params):
     if view_mode=="expression":
         return {
-            "range":(-1.0,1.0),
+            "range":(
+                satellite_sensor_params["index_min_value"],
+                satellite_sensor_params["index_max_value"]
+            ),
             "default": (
                 satellite_sensor_params["index_min_value"],
                 satellite_sensor_params["index_max_value"]
@@ -232,9 +237,12 @@ def get_min_max_image_range(view_mode, satellite_sensor_params):
 
 def get_default_view_options_index(view_mode, options):
     if view_mode == "assets":
-        return options.index(app_config_data.default_composition_value_for_composite)
-
-    return options.index(app_config_data.default_composition_value_for_index)
+        if app_config_data.default_composition_value_for_composite in options:
+            return options.index(app_config_data.default_composition_value_for_composite)
+        return 0
+    if app_config_data.default_composition_value_for_index in options:
+        return options.index(app_config_data.default_composition_value_for_index)
+    return 0
 
 def startup_session_variables():
     st.write('<style>div.row-widget.stRadio > div{flex-direction:row;}</style>', unsafe_allow_html=True)
@@ -250,7 +258,8 @@ def startup_session_variables():
 def create_options_menu(satellite_sensor_params):
     color_formula = ""
     colormap = ""
-    view_modes = ["assets", "expression"]
+    view_modes = ["assets", "expression", "RGB-expression"]
+    view_modes = [view_mode for view_mode in view_modes if view_mode in satellite_sensor_params]
     with st.expander("options"):
         enhance_image = ste.checkbox(
             "enhance image resolution",
@@ -433,8 +442,7 @@ def create_gif_menu(date_string, satellite_sensor_params, max_cloud_percent, vie
 
 def create_powered_by_menu():
     with st.expander("powered by:"):
-        st.write("Satellites: ESA Sentinel 2 & NASA Landsat 4,5,6,8,9 hosted on S3 AWS")
-        st.write("(Note: Landsat is not free of charge.)")
+        st.write("Satellites: ESA Sentinel 1,2 & NASA Landsat 4,5,6,8,9 hosted on S3 AWS")
         st.write("Earth Search STAC API from element84 to search images via pystac")
         st.write("rio_tiller to read and render STAC/COG links into a real image")
         st.write("streamlit-folium / folium / leaflet for the map")
@@ -535,14 +543,16 @@ def main():
 
 
     with col2:
-        max_cloud_percent = ste.number_input(
-            "Maximum cloud cover (%)",
-            min_value=0.0,
-            max_value=100.0,
-            value=app_config_data.default_cloud_cover,
-            step=app_config_data.cloud_cover_step,
-            key="cloud-perc"
-        )
+        max_cloud_percent = 100
+        if satellite_sensor.lower()!="sentinel 1":
+            max_cloud_percent = ste.number_input(
+                "Maximum cloud cover (%)",
+                min_value=0.0,
+                max_value=100.0,
+                value=app_config_data.default_cloud_cover,
+                step=app_config_data.cloud_cover_step,
+                key="cloud-perc"
+            )
 
     col1, col2 = st.columns(2)
     with col1:
@@ -599,6 +609,7 @@ def main():
         satellite_sensor_params["collection_name"],
         satellite_sensor_params["platforms"]
     )
+
     col1, col2 = st.columns(2)
     if len(stac_items) == 0:
         warning_area_user_input.write(f":red[Search returned no results, change date or max cloud cover]")

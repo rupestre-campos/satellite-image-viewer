@@ -105,7 +105,9 @@ class AnimationCreator:
             if len(stac_items)==0:
                 continue
             image_render_params.update({"stac_list": stac_items, "image_format": "PNG"})
+
             result_image = self.image_renderer.render_mosaic_from_stac(image_render_params)
+
             image = self.__parse_image(result_image.pop("image"))
             image = self.__resize_image(image, width, height)
             image = self.__burn_date_into_image(
