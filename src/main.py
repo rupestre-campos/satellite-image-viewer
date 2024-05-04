@@ -139,7 +139,8 @@ def mosaic_render(
     image_range,
     color_formula,
     colormap,
-    enhance_image
+    enhance_image,
+    enhance_passes
     ):
     feature_geojson = {
         "type": "Feature",
@@ -157,7 +158,8 @@ def mosaic_render(
         "feature_geojson": feature_geojson,
         "stac_list": stac_list,
         "image_as_array": True,
-        "enhance_image": enhance_image
+        "enhance_image": enhance_image,
+        "enhance_passes": enhance_passes
     })
     params.pop("assets")
     params.pop("expression")
@@ -255,17 +257,39 @@ def startup_session_variables():
     if not "result_gif_image" in st.session_state:
         st.session_state["result_gif_image"] = {}
 
+def divisions_until_remain_is_1(value, divider):
+    count = 0
+    while value / divider >= 1:
+        value //= divider
+        count += 1
+    return count
+
 def create_options_menu(satellite_sensor_params):
     color_formula = ""
     colormap = ""
     view_modes = ["assets", "expression", "RGB-expression"]
     view_modes = [view_mode for view_mode in view_modes if view_mode in satellite_sensor_params]
     with st.expander("options"):
-        enhance_image = ste.checkbox(
-            "enhance image resolution",
-            value=app_config_data.enhance_image_default,
-            key="enhance"
-        )
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            enhance_image = ste.checkbox(
+                "enhance image resolution",
+                value=app_config_data.enhance_image_default,
+                key="enhance"
+            )
+        with col2:
+            enhance_passes = ""
+            if enhance_image:
+                enhance_passes_options = app_config_data.enhance_image_passes.split(",")
+                enhance_passes_options_tag = [f"{4**int(value)}x" for value in enhance_passes_options]
+                enhance_power = ste.radio(
+                    "enhance power",
+                    options=enhance_passes_options_tag,
+                    index=0,
+                    key="enhance-power"
+                )
+
+                enhance_passes = round(int(enhance_power.strip("x")) ** (1/4))
 
         col1, col2 = st.columns(2)
         with col1:
@@ -335,7 +359,8 @@ def create_options_menu(satellite_sensor_params):
                 "color_formula": color_formula,
                 "image_range": image_range,
                 "view_param": view_param,
-                "enhance_image": enhance_image
+                "enhance_image": enhance_image,
+                "enhance_passes": enhance_passes
             }
 
         col1, col2 = st.columns(2)
@@ -388,7 +413,8 @@ def create_options_menu(satellite_sensor_params):
             "color_formula": color_formula,
             "image_range": image_range,
             "view_param": view_param,
-            "enhance_image": enhance_image
+            "enhance_image": enhance_image,
+            "enhance_passes": enhance_passes
         }
 
 def create_gif_menu(date_string, satellite_sensor_params, max_cloud_percent, view_param):
@@ -496,6 +522,8 @@ def main():
     colormap = options_menu_values["colormap"]
     color_formula = options_menu_values["color_formula"]
     enhance_image = options_menu_values["enhance_image"]
+    enhance_passes = options_menu_values["enhance_passes"]
+
     start_date = datetime.strptime(
         satellite_sensor_params.get("start_date"),
         "%Y-%m-%d"
@@ -623,7 +651,8 @@ def main():
             image_range,
             color_formula,
             colormap,
-            enhance_image
+            enhance_image,
+            enhance_passes
             )
 
         st.write(f'Image ID: {image_data["name"]}')

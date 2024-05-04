@@ -163,7 +163,9 @@ class ReadSTAC:
         image = self.__render_image(image, params)
 
         if params.get("enhance_image"):
-            image = self.__enhance_image(image, params)
+            passes = params.get("enhance_passes", 1)
+            for step in range(passes):
+                image = self.__enhance_image(image, params)
 
         world_file = self.__get_world_file_content(image_bounds, image)
 
