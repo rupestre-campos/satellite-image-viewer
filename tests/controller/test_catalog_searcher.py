@@ -38,6 +38,20 @@ def test_catalog_search(stac_url, feature_geojson, datestring, mocker):
     }
     assert searcher.search_images(params) == []
 
+def test_catalog_search(stac_url, feature_geojson, datestring, mocker):
+    mocker.patch("model.search_stac.SearchSTAC.connect_client", return_value=None)
+    mocker.patch("model.search_stac.SearchSTAC.get_items", return_value=[])
+    searcher = CatalogSearcher(stac_url)
+    params = {
+        "feature_geojson": feature_geojson,
+        "date_string": datestring,
+        "max_cloud_cover": 100,
+        "max_items": 3,
+        "collection": "sentinel-1-grd",
+    }
+    assert searcher.search_images(params) == []
+
+
 def test_catalog_search_platforms(stac_url, feature_geojson, datestring, mocker):
     mocker.patch("model.search_stac.SearchSTAC.connect_client", return_value=None)
     mocker.patch("model.search_stac.SearchSTAC.get_items", return_value=[])
