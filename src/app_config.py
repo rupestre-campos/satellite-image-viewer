@@ -15,6 +15,7 @@ class AppConfig:
         self.default_start_address = os.getenv("DEFAULT_START_ADDRESS", "San Francisco CA")
         self.address_max_chars = int(os.getenv("ADDRESS_MAX_CHARS", "128"))
         self.enable_sentinel = os.getenv("ENABLE_SENTINEL", "True").lower() in ('true', '1', 't')
+        self.enable_sentinel1 = os.getenv("ENABLE_SENTINEL1", "False").lower() in ('true', '1', 't')
         self.enable_landsat = os.getenv("ENABLE_LANDSAT", "False").lower() in ('true', '1', 't')
         self.satelites = self.__get_satellites_params()
         self.default_cloud_cover = float(os.getenv("DEFAULT_CLOUD_COVER", "20.0"))
@@ -31,10 +32,10 @@ class AppConfig:
         self.gif_default_interval = int(os.getenv("GIF_DEFAULT_INTERVAL_DAYS", "120"))
         self.gif_max_interval = int(os.getenv("GIF_MAX_INTERVAL_DAYS", "365"))
         self.allowed_gif_satellite = os.getenv("ALLOWED_GIF_SATELLITE", "sentinel 2").lower()
-        self.max_saturation = float(os.getenv("IMAGE_MAX_SATURATION", 5))
-        self.max_gamma = float(os.getenv("IMAGE_MAX_GAMMA", 5))
-        self.max_sigmoidal = float(os.getenv("IMAGE_MAX_SIGMOIDAL", 15))
-        self.max_sigmoidal_gain = float(os.getenv("IMAGE_MAX_SIGMOIDAL_GAIN", 5))
+        self.max_saturation = float(os.getenv("IMAGE_MAX_SATURATION", 100))
+        self.max_gamma = float(os.getenv("IMAGE_MAX_GAMMA", 100))
+        self.max_sigmoidal = float(os.getenv("IMAGE_MAX_SIGMOIDAL", 100))
+        self.max_sigmoidal_gain = float(os.getenv("IMAGE_MAX_SIGMOIDAL_GAIN", 1))
         self.default_composition_index = int(os.getenv("DEFAULT_COMPOSITION_INDEX", 0))
         self.default_composition_value_for_index = os.getenv("DEFAULT_COMPOSITION_VALUE_INDEX", "ndvi")
         self.default_composition_value_for_composite = os.getenv("DEFAULT_COMPOSITION_VALUE_COMPOSITE", "real-color (RGB)")
@@ -46,6 +47,8 @@ class AppConfig:
             params.update({"Sentinel 2": self.__get_sensor_sentinel_params()})
         if self.enable_landsat:
             params.update({"Landsat": self.__get_sensor_landsat_params()})
+        if self.enable_sentinel1:
+            params.update({"Sentinel 1": self.__get_sensor_sentinel1_params()})
         return params
 
     @staticmethod
@@ -220,6 +223,87 @@ class AppConfig:
                 "evi": f"2.5*(({nir}-{red})/(({nir}-6*{red}-7.5*{blue})+1))",
                 "savi": f"(({nir}-{red})/({nir}+{red}+0.5))*1.5",
                 "nbr": f"({nir}-{swir22})/({nir}+{swir22})"
+            },
+            "index_min_value": index_min_value,
+            "index_max_value": index_max_value,
+            "color_formula":
+                f"sigmoidal RGB {color_formula_sigmoidal} {color_formula_sigmoidal_gain} "\
+                f"gamma RGB {color_formula_gamma} "\
+                f"saturation {color_formula_saturation}",
+            "aws_access_key_id": aws_access_key_id,
+            "aws_secret_access_key": aws_secret_access_key,
+            "aws_region_name": region_name,
+            "aws_request_payer": aws_request_payer,
+            "aws_no_sign_requests": aws_no_sign_requests,
+            "color_formula_saturation": color_formula_saturation,
+            "color_formula_sigmoidal": color_formula_sigmoidal,
+            "color_formula_sigmoidal_gain": color_formula_sigmoidal_gain,
+            "color_formula_gamma": color_formula_gamma,
+        }
+
+    @staticmethod
+    def __get_sensor_sentinel1_params():
+        collection_name = os.getenv("SENTINEL1_COLLECTION_NAME", "sentinel-1-grd")
+        collection_start_date = os.getenv("SENTINEL1_COLLECTION_START_DATE", "2014-10-10")
+        collection_end_date = os.getenv("SENTINEL1_COLLECTION_END_DATE", datetime.now().strftime("%Y-%m-%d"))
+        image_max_size = os.getenv("SENTINEL1_IMAGE_MAX_SIZE", None)
+        band_nodata_value = int(os.getenv("SENTINEL1_BAND_NODATA_VALUE", 0))
+        band_min_value = int(os.getenv("SENTINEL1_BAND_MIN_VALUE", 0))
+        band_max_value = int(os.getenv("SENTINEL1_BAND_MAX_VALUE", 4000))
+        index_min_value = float(os.getenv("SENTINEL1_INDEX_MIN_VALUE", 0))
+        index_max_value = float(os.getenv("SENTINEL1_INDEX_MAX_VALUE", 4000))
+        hh = os.getenv("SENTINEL1_HH_CHANNEL_ASSET_NAME", "hh")
+        hv = os.getenv("SENTINEL1_HV_CHANNEL_ASSET_NAME", "hv")
+        vh = os.getenv("SENTINEL1_VH_CHANNEL_ASSET_NAME", "vh")
+        vv = os.getenv("SENTINEL1_VV_CHANNEL_ASSET_NAME", "vv")
+        color_formula_sigmoidal = float(os.getenv("SENTINEL1_COLOR_FORMULA_SIGMOIDAL", "5"))
+        color_formula_sigmoidal_gain = float(os.getenv("SENTINEL1_COLOR_FORMULA_SIGMOIDAL_GAIN", "0.1"))
+        color_formula_gamma = float(os.getenv("SENTINEL1_COLOR_FORMULA_GAMMA", "1.2"))
+        color_formula_saturation = float(os.getenv("SENTINEL1_COLOR_FORMULA_SATURATION", "1.2"))
+        aws_access_key_id = os.getenv("SENTINEL1_AWS_ACCESS_KEY_ID", "")
+        aws_secret_access_key = os.getenv("SENTINEL1_AWS_SECRET_ACCESS_KEY", "")
+        region_name = os.getenv("SENTINEL11_AWS_REGION_NAME", "eu-central-1")
+        aws_request_payer = os.getenv("SENTINEL1_AWS_REQUEST_PAYER", "provider")
+        aws_no_sign_requests = os.getenv("SENTINEL1_AWS_NO_SIGN_REQUESTS", "NO")
+        platforms = os.getenv("SENTINEL1_PLATFORMS", "")
+
+        return {
+            "name": "Sentinel 1",
+            "collection_name": collection_name,
+            "start_date": collection_start_date,
+            "end_date": collection_end_date,
+            "min_value": band_min_value,
+            "max_value": band_max_value,
+            "nodata": band_nodata_value,
+            "max_size": image_max_size,
+            "platforms": platforms,
+            "assets": {
+                "vv-vh-vv": (
+                    vv,
+                    vh,
+                    vv
+                ),
+                "vv-vh-vh": (
+                    vv,
+                    vh,
+                    vh
+                ),
+            },
+            "expression": {
+                "vv": f"{vv}",
+                "vh": f"{vh}",
+                "vv/vh": f"{vv}/{vh}",
+                "swi": f"0.1747 * {vv} + 0.0082 * {vh} * {vv} + 0.0023 * {vv}**2 - 0.0015 * {vh}**2 + 0.1904"
+            },
+            "RGB-expression": {
+                "vv|vh|vv/vh": {
+                    "assets": (vv, vh),
+                    "expression":f"{vv},{vh},{vv}/{vh}"
+                },
+                "vv-vh-|vh-vv|vv/vh": {
+                    "assets": (vv, vh),
+                    "expression":f"{vv}-{vh},{vh}-{vv},{vv}/{vh}"
+                }
             },
             "index_min_value": index_min_value,
             "index_max_value": index_max_value,

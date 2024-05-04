@@ -16,10 +16,13 @@ class CatalogSearcher:
             "max_items": params.get("max_items"),
             "collections": [params.get("collection")],
             "intersects": geometry,
-            "query":{
-                "eo:cloud_cover":{"lte":params.get("max_cloud_cover")},
-            }
+            "query": {}
         }
+        if params.get("collection") != "sentinel-1-grd":
+            kwargs["query"].update({
+                "eo:cloud_cover":{"lte":params.get("max_cloud_cover")},
+            })
+
         if params.get("platforms"):
             kwargs["query"].update({"platform":{"in": params.get("platforms")}})
 

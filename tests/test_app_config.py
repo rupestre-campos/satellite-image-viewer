@@ -14,5 +14,6 @@ def test_without_sat():
 def test_with_all_sat():
     os.environ["ENABLE_SENTINEL"] = "True"
     os.environ["ENABLE_LANDSAT"] = "True"
+    os.environ["ENABLE_SENTINEL1"] = "True"
     config = AppConfig()
     assert isinstance(config, AppConfig)
