@@ -291,11 +291,12 @@ def create_options_menu(satellite_sensor_params):
 
                 enhance_passes = round(int(enhance_power.strip("x")) ** (1/4))
         with col4:
-            buffer_width = st.number_input(
+            buffer_width = ste.number_input(
                 "buffer radius",
                 min_value=100,
                 max_value=app_config_data.buffer_max_width,
-                value=app_config_data.buffer_width
+                value=app_config_data.buffer_width,
+                key="buffer"
             )
 
         col1, col2 = st.columns(2)
