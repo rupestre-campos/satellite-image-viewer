@@ -58,12 +58,15 @@ class ReadSTAC:
         for bdx, band in enumerate(params["RGB-expression"].get("assets")):
             ctx[band] = image_data.data[bdx]
         expression = params["RGB-expression"].get("expression").split(",")
-        return ImageData(
+        mask = np.invert(image_data.mask)
+        masks = (mask,mask,mask)
+        data = np.ma.MaskedArray(
             np.array(
                 [np.nan_to_num(ne.evaluate(band.strip(), local_dict=ctx)) for band in expression]
             ),
-            image_data.mask,
+            mask=masks
         )
+        return ImageData(data)
 
     @staticmethod
     def __resize_alpha(alpha_channel, image):
