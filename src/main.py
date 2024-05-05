@@ -278,7 +278,7 @@ def create_options_menu(satellite_sensor_params):
                 key="enhance"
             )
         with col2:
-            enhance_passes = ""
+            enhance_passes = 0
             if enhance_image:
                 enhance_passes_options = app_config_data.enhance_image_passes.split(",")
                 enhance_passes_options_tag = [f"{4**int(value)}x" for value in enhance_passes_options]
@@ -291,21 +291,7 @@ def create_options_menu(satellite_sensor_params):
 
                 enhance_passes = round(int(enhance_power.strip("x")) ** (1/4))
         with col4:
-            buffer_max_width = float(app_config_data.buffer_max_width)
-            buffer_width_default = float(app_config_data.buffer_width)
-            if enhance_image:
-                buffer_max_width = float(buffer_max_width)/(enhance_passes+1)
-                buffer_width_default = float(buffer_width_default)/(enhance_passes+1)
-                if float(st.query_params["buffer"]) > buffer_max_width:
-                    st.query_params["buffer"] = buffer_width_default
-            buffer_width = ste.number_input(
-                "buffer radius",
-                min_value=100.0,
-                max_value=buffer_max_width,
-                value=buffer_width_default,
-                step=10.0,
-                key="buffer"
-            )
+            buffer_width = float(app_config_data.buffer_width)/(enhance_passes+1)
 
         col1, col2 = st.columns(2)
         with col1:
