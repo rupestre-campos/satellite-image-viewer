@@ -251,7 +251,7 @@ class AppConfig:
         band_nodata_value = int(os.getenv("SENTINEL1_BAND_NODATA_VALUE", 0))
         band_min_value = int(os.getenv("SENTINEL1_BAND_MIN_VALUE", 0))
         band_max_value = int(os.getenv("SENTINEL1_BAND_MAX_VALUE", 4000))
-        index_min_value = float(os.getenv("SENTINEL1_INDEX_MIN_VALUE", 0))
+        index_min_value = float(os.getenv("SENTINEL1_INDEX_MIN_VALUE", -1))
         index_max_value = float(os.getenv("SENTINEL1_INDEX_MAX_VALUE", 4000))
         hh = os.getenv("SENTINEL1_HH_CHANNEL_ASSET_NAME", "hh")
         hv = os.getenv("SENTINEL1_HV_CHANNEL_ASSET_NAME", "hv")
@@ -263,7 +263,7 @@ class AppConfig:
         color_formula_saturation = float(os.getenv("SENTINEL1_COLOR_FORMULA_SATURATION", "1.2"))
         aws_access_key_id = os.getenv("SENTINEL1_AWS_ACCESS_KEY_ID", "")
         aws_secret_access_key = os.getenv("SENTINEL1_AWS_SECRET_ACCESS_KEY", "")
-        region_name = os.getenv("SENTINEL11_AWS_REGION_NAME", "eu-central-1")
+        region_name = os.getenv("SENTINEL1_AWS_REGION_NAME", "eu-central-1")
         aws_request_payer = os.getenv("SENTINEL1_AWS_REQUEST_PAYER", "provider")
         aws_no_sign_requests = os.getenv("SENTINEL1_AWS_NO_SIGN_REQUESTS", "NO")
         platforms = os.getenv("SENTINEL1_PLATFORMS", "")
@@ -301,7 +301,7 @@ class AppConfig:
                     "assets": (vv, vh),
                     "expression":f"{vv},{vh},{vv}/{vh}"
                 },
-                "vv-vh-|vh-vv|vv/vh": {
+                "vv-vh|vh-vv|vv/vh": {
                     "assets": (vv, vh),
                     "expression":f"{vv}-{vh},{vh}-{vv},{vv}/{vh}"
                 }
