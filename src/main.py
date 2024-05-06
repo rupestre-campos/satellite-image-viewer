@@ -86,12 +86,12 @@ def create_gif(
         )
     }
     satellite_view_params = satellite_params.copy()
-    if "assets" in params:
-        params.pop("assets")
-    if "expression" in params:
-        params.pop("expression")
-    if "RGB-expression" in params:
-        params.pop("RGB-expression")
+    if "assets" in satellite_view_params:
+        satellite_view_params.pop("assets")
+    if "expression" in satellite_view_params:
+        satellite_view_params.pop("expression")
+    if "RGB-expression" in satellite_view_params:
+        satellite_view_params.pop("RGB-expression")
     satellite_view_params.update(view_params)
 
     params = {
