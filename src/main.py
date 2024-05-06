@@ -86,8 +86,12 @@ def create_gif(
         )
     }
     satellite_view_params = satellite_params.copy()
-    satellite_view_params.pop("assets")
-    satellite_view_params.pop("expression")
+    if "assets" in params:
+        params.pop("assets")
+    if "expression" in params:
+        params.pop("expression")
+    if "RGB-expression" in params:
+        params.pop("RGB-expression")
     satellite_view_params.update(view_params)
 
     params = {
@@ -140,7 +144,8 @@ def mosaic_render(
     color_formula,
     colormap,
     enhance_image,
-    enhance_passes
+    enhance_passes,
+    compute_min_max
     ):
     feature_geojson = {
         "type": "Feature",
@@ -159,10 +164,13 @@ def mosaic_render(
         "stac_list": stac_list,
         "image_as_array": True,
         "enhance_image": enhance_image,
-        "enhance_passes": enhance_passes
+        "enhance_passes": enhance_passes,
+        "compute_min_max": compute_min_max
     })
-    params.pop("assets")
-    params.pop("expression")
+    if "assets" in params:
+        params.pop("assets")
+    if "expression" in params:
+        params.pop("expression")
     if "RGB-expression" in params:
         params.pop("RGB-expression")
     params.update(view_params)
@@ -290,17 +298,23 @@ def create_options_menu(satellite_sensor_params):
                 )
 
                 enhance_passes = round(int(enhance_power.strip("x")) ** (1/4))
-        with col4:
-            buffer_width = float(app_config_data.buffer_width)/(enhance_passes+1)
+        with col3:
+            compute_min_max = ste.checkbox(
+                "Compute min max from image", value=False, key="compute-min-max")
+
+        buffer_width = float(app_config_data.buffer_width)/(enhance_passes+1)
 
         col1, col2 = st.columns(2)
         with col1:
             col3, col4 = st.columns(2)
             with col3:
+                index = 0
+                if len(view_modes) <= app_config_data.default_composition_index+1:
+                    index = app_config_data.default_composition_index
                 view_mode = ste.radio(
                     "Select image composition",
                     options=view_modes,
-                    index=app_config_data.default_composition_index,
+                    index=index,
                     key="img-comp"
                 )
                 if not view_mode:
@@ -321,25 +335,28 @@ def create_options_menu(satellite_sensor_params):
                     st.query_params["img-view"] = selected_bands
 
         with col2:
-            col3, col4 = st.columns(2)
             min_max_range = get_min_max_image_range(view_mode, satellite_sensor_params)
-            with col3:
-                image_range_min = st.number_input(
-                    "Image min value",
-                    value=min_max_range["default"][0],
-                    min_value=min_max_range["range"][0],
-                    max_value=min_max_range["range"][1],
-                    key="img-min"
-                )
+            image_range_min = 0
+            image_range_max = 1
+            col3, col4 = st.columns(2)
+            if not compute_min_max:
+                with col3:
+                    image_range_min = st.number_input(
+                        "Image min value",
+                        value=min_max_range["default"][0],
+                        min_value=min_max_range["range"][0],
+                        max_value=min_max_range["range"][1],
+                        key="img-min"
+                    )
 
-            with col4:
-                image_range_max = st.number_input(
-                    "Image max value",
-                    value=min_max_range["default"][1],
-                    min_value=min_max_range["range"][0],
-                    max_value=min_max_range["range"][1],
-                    key="img-max"
-                )
+                with col4:
+                    image_range_max = st.number_input(
+                        "Image max value",
+                        value=min_max_range["default"][1],
+                        min_value=min_max_range["range"][0],
+                        max_value=min_max_range["range"][1],
+                        key="img-max"
+                    )
 
             image_range = (image_range_min, image_range_max)
             view_param = {view_mode: satellite_sensor_params[view_mode][selected_bands]}
@@ -363,7 +380,8 @@ def create_options_menu(satellite_sensor_params):
                 "view_param": view_param,
                 "enhance_image": enhance_image,
                 "enhance_passes": enhance_passes,
-                "buffer_width": buffer_width
+                "buffer_width": buffer_width,
+                "compute_min_max": compute_min_max
             }
 
         col1, col2 = st.columns(2)
@@ -418,7 +436,8 @@ def create_options_menu(satellite_sensor_params):
             "view_param": view_param,
             "enhance_image": enhance_image,
             "enhance_passes": enhance_passes,
-            "buffer_width": buffer_width
+            "buffer_width": buffer_width,
+            "compute_min_max": compute_min_max
         }
 
 def create_gif_menu(
@@ -484,8 +503,8 @@ def create_powered_by_menu():
 
     st.write("This application does not collect data but use carefully ;)")
 
-def main():
-    startup_session_variables()
+@st.cache_data
+def get_web_map():
     web_map = WebMap()
     web_map.add_fullscreen()
     web_map.add_draw_support()
@@ -493,7 +512,11 @@ def main():
     web_map.add_base_map(app_config_data.google_basemap, "google satellite", "google", show=True)
     web_map.add_base_map(app_config_data.open_street_maps, "open street maps", "open street maps")
     web_map.add_base_map(app_config_data.esri_basemap, "esri satellite", "esri")
+    return web_map
 
+def main():
+    startup_session_variables()
+    web_map = get_web_map()
     st.title("Satellite Image Viewer")
     col1, col2, col3 = st.columns(3)
     with col1:
@@ -529,7 +552,7 @@ def main():
     enhance_image = options_menu_values["enhance_image"]
     enhance_passes = options_menu_values["enhance_passes"]
     buffer_width = options_menu_values["buffer_width"]
-
+    compute_min_max = options_menu_values["compute_min_max"]
     start_date = datetime.strptime(
         satellite_sensor_params.get("start_date"),
         "%Y-%m-%d"
@@ -578,7 +601,7 @@ def main():
 
     with col2:
         max_cloud_percent = 100
-        if satellite_sensor.lower()!="sentinel 1":
+        if satellite_sensor.lower() not in ("sentinel 1", "copernicus dem"):
             max_cloud_percent = ste.number_input(
                 "Maximum cloud cover (%)",
                 min_value=0.0,
@@ -590,23 +613,31 @@ def main():
 
     col1, col2 = st.columns(2)
     with col1:
-        start_date = ste.date_input(
-            "Start date",
-            value=start_date,
-            min_value=start_date,
-            max_value=end_date,
-            format="YYYY-MM-DD",
-            key="start-date"
-        )
+        if st.query_params.get("start-date"):
+            if datetime.strptime(st.query_params.get("start-date"), "%Y-%m-%d") < start_date:
+                st.query_params["start-date"] = start_date
+        if satellite_sensor.lower() not in ("copernicus dem"):
+            start_date = ste.date_input(
+                "Start date",
+                value=start_date,
+                min_value=start_date,
+                max_value=end_date,
+                format="YYYY-MM-DD",
+                key="start-date"
+            )
     with col2:
-        end_date = ste.date_input(
-            "End date",
-            value=end_date,
-            min_value=start_date,
-            max_value=end_date,
-            format="YYYY-MM-DD",
-            key="end-date"
-        )
+        if st.query_params.get("end-date"):
+            if datetime.strptime(st.query_params.get("end-date"), "%Y-%m-%d") > end_date:
+                st.query_params["end-date"] = end_date
+        if satellite_sensor.lower() not in ("copernicus dem"):
+            end_date = ste.date_input(
+                "End date",
+                value=end_date,
+                min_value=start_date,
+                max_value=end_date,
+                format="YYYY-MM-DD",
+                key="end-date"
+            )
         if end_date <= start_date:
             end_date = start_date + timedelta(days=1)
 
@@ -645,7 +676,7 @@ def main():
         satellite_sensor_params["platforms"]
     )
 
-    col1, col2 = st.columns(2)
+    col1, col2, col3 = st.columns(3)
     if len(stac_items) == 0:
         warning_area_user_input.write(f":red[Search returned no results, change date or max cloud cover]")
     if len(stac_items) > 0:
@@ -659,14 +690,13 @@ def main():
             color_formula,
             colormap,
             enhance_image,
-            enhance_passes
+            enhance_passes,
+            compute_min_max
             )
 
-        st.write(f'Image ID: {image_data["name"]}')
-
         with col1:
+            st.write(f'Image ID: {image_data["name"]}')
             create_download_zip_button(image_data["zip_file"], image_data["name"])
-
 
         web_map.add_image(
             image_data["image"],
@@ -684,6 +714,8 @@ def main():
         }
         web_map.add_polygon(feature_geojson)
     with col2:
+        st.write(f"Min/Max values input: {image_data['min_value']:.2f}/{image_data['max_value']:.2f}")
+    with col3:
         if st.session_state["result_gif_image"]:
             create_download_gif_button(st.session_state["result_gif_image"])
 
