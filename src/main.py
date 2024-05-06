@@ -708,8 +708,8 @@ def main():
             )
         }
         web_map.add_polygon(feature_geojson)
-    with col2:
-        st.write(f"Min/Max values input: {image_data['min_value']:.2f}/{image_data['max_value']:.2f}")
+        with col2:
+            st.write(f"Min/Max values input: {image_data['min_value']:.2f}/{image_data['max_value']:.2f}")
     with col3:
         if st.session_state["result_gif_image"]:
             create_download_gif_button(st.session_state["result_gif_image"])
