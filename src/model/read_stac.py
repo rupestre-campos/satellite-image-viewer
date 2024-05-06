@@ -173,8 +173,10 @@ class ReadSTAC:
             image_data = self.__process_rgb_expression(image_data, params)
 
         if params.get("compute_min_max"):
-            min_value = round(image_data.data.min(), self.float_precision)
-            max_value = round(image_data.data.max(), self.float_precision)
+            min_value = round(
+                image_data.data[image_data.data!=params.get("nodata")].min(), self.float_precision)
+            max_value = round(
+                image_data.data[image_data.data!=params.get("nodata")].max(), self.float_precision)
             params.update({"min_value": min_value, "max_value": max_value})
 
         image = self.__post_process_image(image_data, params)
