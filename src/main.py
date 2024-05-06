@@ -265,13 +265,6 @@ def startup_session_variables():
     if not "result_gif_image" in st.session_state:
         st.session_state["result_gif_image"] = {}
 
-def divisions_until_remain_is_1(value, divider):
-    count = 0
-    while value / divider >= 1:
-        value //= divider
-        count += 1
-    return count
-
 def create_options_menu(satellite_sensor_params):
     color_formula = ""
     colormap = ""
@@ -614,7 +607,8 @@ def main():
     col1, col2 = st.columns(2)
     with col1:
         if st.query_params.get("start-date"):
-            if datetime.strptime(st.query_params.get("start-date"), "%Y-%m-%d") < start_date:
+            query_param_date = st.query_params.get("start-date").replace("00:00:00", "").strip()
+            if datetime.strptime(query_param_date, "%Y-%m-%d") < start_date:
                 st.query_params["start-date"] = start_date
         if satellite_sensor.lower() not in ("copernicus dem"):
             start_date = ste.date_input(
@@ -627,7 +621,8 @@ def main():
             )
     with col2:
         if st.query_params.get("end-date"):
-            if datetime.strptime(st.query_params.get("end-date"), "%Y-%m-%d") > end_date:
+            query_param_date = st.query_params.get("end-date").replace("00:00:00", "").strip()
+            if datetime.strptime(query_param_date, "%Y-%m-%d") > end_date:
                 st.query_params["end-date"] = end_date
         if satellite_sensor.lower() not in ("copernicus dem"):
             end_date = ste.date_input(
