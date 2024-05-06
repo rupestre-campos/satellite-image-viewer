@@ -17,6 +17,7 @@ class AppConfig:
         self.enable_sentinel = os.getenv("ENABLE_SENTINEL", "True").lower() in ('true', '1', 't')
         self.enable_sentinel1 = os.getenv("ENABLE_SENTINEL1", "False").lower() in ('true', '1', 't')
         self.enable_landsat = os.getenv("ENABLE_LANDSAT", "False").lower() in ('true', '1', 't')
+        self.enable_dem = os.getenv("ENABLE_DEM", "False").lower() in ('true', '1', 't')
         self.satelites = self.__get_satellites_params()
         self.default_cloud_cover = float(os.getenv("DEFAULT_CLOUD_COVER", "20.0"))
         self.cloud_cover_step = float(os.getenv("CLOUD_COVER_STEP", "0.3"))
@@ -50,6 +51,8 @@ class AppConfig:
             params.update({"Landsat": self.__get_sensor_landsat_params()})
         if self.enable_sentinel1:
             params.update({"Sentinel 1": self.__get_sensor_sentinel1_params()})
+        if self.enable_dem:
+            params.update({"Copernicus DEM": self.__get_copernicus_dem_params()})
         return params
 
     @staticmethod
@@ -305,6 +308,58 @@ class AppConfig:
                     "assets": (vv, vh),
                     "expression":f"{vv}-{vh},{vh}-{vv},{vv}/{vh}"
                 }
+            },
+            "index_min_value": index_min_value,
+            "index_max_value": index_max_value,
+            "color_formula":
+                f"sigmoidal RGB {color_formula_sigmoidal} {color_formula_sigmoidal_gain} "\
+                f"gamma RGB {color_formula_gamma} "\
+                f"saturation {color_formula_saturation}",
+            "aws_access_key_id": aws_access_key_id,
+            "aws_secret_access_key": aws_secret_access_key,
+            "aws_region_name": region_name,
+            "aws_request_payer": aws_request_payer,
+            "aws_no_sign_requests": aws_no_sign_requests,
+            "color_formula_saturation": color_formula_saturation,
+            "color_formula_sigmoidal": color_formula_sigmoidal,
+            "color_formula_sigmoidal_gain": color_formula_sigmoidal_gain,
+            "color_formula_gamma": color_formula_gamma,
+        }
+    @staticmethod
+    def __get_copernicus_dem_params():
+        collection_name = os.getenv("DEM_COLLECTION_NAME", "cop-dem-glo-30")
+        collection_start_date = os.getenv("DEM_COLLECTION_START_DATE", "2021-04-20")
+        collection_end_date = os.getenv("DEM_COLLECTION_END_DATE", datetime.now().strftime("%Y-%m-%d"))
+        image_max_size = os.getenv("DEM_IMAGE_MAX_SIZE", None)
+        band_nodata_value = int(os.getenv("DEM_BAND_NODATA_VALUE", -10000))
+        band_min_value = int(os.getenv("DEM_BAND_MIN_VALUE", 0))
+        band_max_value = int(os.getenv("DEM_BAND_MAX_VALUE", 9000))
+        index_min_value = float(os.getenv("DEM_INDEX_MIN_VALUE", 0))
+        index_max_value = float(os.getenv("DEM_INDEX_MAX_VALUE", 9000))
+        data = os.getenv("DEM_DATA_CHANNEL_ASSET_NAME", "data")
+        color_formula_sigmoidal = float(os.getenv("DEM_COLOR_FORMULA_SIGMOIDAL", "10"))
+        color_formula_sigmoidal_gain = float(os.getenv("DEM_COLOR_FORMULA_SIGMOIDAL_GAIN", "0.01"))
+        color_formula_gamma = float(os.getenv("DEM_COLOR_FORMULA_GAMMA", "1.4"))
+        color_formula_saturation = float(os.getenv("DEM_COLOR_FORMULA_SATURATION", "1.2"))
+        aws_access_key_id = os.getenv("DEM_AWS_ACCESS_KEY_ID", "")
+        aws_secret_access_key = os.getenv("DEM_AWS_SECRET_ACCESS_KEY", "")
+        region_name = os.getenv("DEM_AWS_REGION_NAME", "eu-central-1")
+        aws_request_payer = os.getenv("DEM_AWS_REQUEST_PAYER", "provider")
+        aws_no_sign_requests = os.getenv("DEM_AWS_NO_SIGN_REQUESTS", "NO")
+        platforms = os.getenv("DEM_PLATFORMS", "")
+
+        return {
+            "name": "Copernicus DEM",
+            "collection_name": collection_name,
+            "start_date": collection_start_date,
+            "end_date": collection_end_date,
+            "min_value": band_min_value,
+            "max_value": band_max_value,
+            "nodata": band_nodata_value,
+            "max_size": image_max_size,
+            "platforms": platforms,
+            "expression": {
+                "dem": f"{data}",
             },
             "index_min_value": index_min_value,
             "index_max_value": index_max_value,

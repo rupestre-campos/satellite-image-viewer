@@ -18,7 +18,7 @@ class CatalogSearcher:
             "intersects": geometry,
             "query": {}
         }
-        if params.get("collection") != "sentinel-1-grd":
+        if params.get("collection") not in ("sentinel-1-grd", "cop-dem-glo-30"):
             kwargs["query"].update({
                 "eo:cloud_cover":{"lte":params.get("max_cloud_cover")},
             })

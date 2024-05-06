@@ -45,12 +45,11 @@ class ReadSTAC:
 
     @staticmethod
     def __get_view_params(params):
-        if "assets" in params:
-            return "assets", params.get("assets")
         if "expression" in params:
             return "expression", params.get("expression")
         if "RGB-expression" in params:
             return "assets", params["RGB-expression"].get("assets")
+        return "assets", params.get("assets")
 
     @staticmethod
     def __process_rgb_expression(image_data, params):
@@ -121,22 +120,33 @@ class ReadSTAC:
         return zip_buffer.getvalue()
 
     def __post_process_image(self, image_data, params):
-        if params.get("assets") or params.get("RGB-expression"):
+        min_value = params.get("min_value")
+        max_value = params.get("max_value")
+
+        if params.get("assets"):
             return image_data.post_process(
-                in_range=((params.get("min_value"), params.get("max_value")),),
+                in_range=((min_value, max_value),),
+                color_formula=params.get("color_formula"),
+            )
+        if params.get("RGB-expression"):
+            return image_data.post_process(
+                in_range=((min_value, max_value),),
                 color_formula=params.get("color_formula"),
             )
 
         return image_data.post_process(
             in_range=((
-                params.get("min_value",-1),
-                params.get("max_value", 1),
+                min_value,
+                max_value,
             ),),
         )
 
     def __render_image(self, image, params):
-        if params.get("assets") or params.get("RGB-expression"):
+        if params.get("assets"):
             return image.render(img_format=params.get("image_format"))
+        if params.get("RGB-expression"):
+            return image.render(img_format=params.get("image_format"))
+
         input_colormap = params.get("colormap", "viridis")
         colormap = cmap.get(input_colormap)
         return image.render(
@@ -161,6 +171,11 @@ class ReadSTAC:
 
         if params.get("RGB-expression"):
             image_data = self.__process_rgb_expression(image_data, params)
+
+        if params.get("compute_min_max"):
+            min_value = round(image_data.data.min(), self.float_precision)
+            max_value = round(image_data.data.max(), self.float_precision)
+            params.update({"min_value": min_value, "max_value": max_value})
 
         image = self.__post_process_image(image_data, params)
         image = self.__render_image(image, params)
@@ -189,6 +204,8 @@ class ReadSTAC:
                 "image": image,
                 "bounds": image_bounds,
                 "zip_file": zip_file,
+                "min_value": params.get("min_value"),
+                "max_value": params.get("max_value"),
                 "name": ", ".join(sorted([item["id"] for item in assets_used]))
             }
 
@@ -197,5 +214,7 @@ class ReadSTAC:
             "projection_file": world_file,
             "bounds": image_bounds,
             "assets_used": assets_used,
+            "min_value": params.get("min_value"),
+            "max_value": params.get("max_value"),
             "name": ", ".join(sorted([item["id"] for item in assets_used]))
         }

@@ -187,11 +187,50 @@ def test_render_mosaic_enhance(stac_item, feature_geojson, sample_image_array):
             "stac_list": stac_list,
             "image_format": image_format,
             "assets":("red", "green", "blue"),
-            "min_value": 0,
-            "max_value": 4000,
+            "compute_min_max": True,
             "max_size": 52,
             "image_as_array": True,
             "enhance_image": True
+    }
+    image_data = stac_reader.render_mosaic_from_stac(params)
+    assert isinstance(image_data["image"], type(sample_image_array))
+    assert isinstance(image_data["bounds"], list)
+    assert isinstance(image_data["projection_file"], str)
+
+def test_render_mosaic_enhance_passes(stac_item, feature_geojson, sample_image_array):
+    image_format = "PNG"
+    stac_list=[stac_item for i in range(2)]
+    stac_reader = ReadSTAC()
+    params = {
+            "feature_geojson": feature_geojson,
+            "stac_list": stac_list,
+            "image_format": image_format,
+            "assets":("red", "green", "blue"),
+            "compute_min_max": True,
+            "max_size": 52,
+            "image_as_array": True,
+            "enhance_image": True,
+            "enhance_passes": 2
+    }
+    image_data = stac_reader.render_mosaic_from_stac(params)
+    assert isinstance(image_data["image"], type(sample_image_array))
+    assert isinstance(image_data["bounds"], list)
+    assert isinstance(image_data["projection_file"], str)
+
+def test_render_mosaic_enhance_passes_none(stac_item, feature_geojson, sample_image_array):
+    image_format = "PNG"
+    stac_list=[stac_item for i in range(2)]
+    stac_reader = ReadSTAC()
+    params = {
+            "feature_geojson": feature_geojson,
+            "stac_list": stac_list,
+            "image_format": image_format,
+            "assets":("red", "green", "blue"),
+            "compute_min_max": True,
+            "max_size": 52,
+            "image_as_array": True,
+            "enhance_image": True,
+            "enhance_passes": 0
     }
     image_data = stac_reader.render_mosaic_from_stac(params)
     assert isinstance(image_data["image"], type(sample_image_array))
@@ -209,6 +248,94 @@ def test_render_mosaic_image_expression(stac_item, feature_geojson, sample_image
             "expression":"red-green",
             "min_value": 0,
             "max_value": 4000,
+            "max_size": 52,
+            "image_as_array": True
+    }
+    image_data = stac_reader.render_mosaic_from_stac(params)
+    assert isinstance(image_data["image"], type(sample_image_array))
+    assert isinstance(image_data["bounds"], list)
+    assert isinstance(image_data["projection_file"], str)
+
+def test_render_mosaic_image_expression_minmax(stac_item, feature_geojson, sample_image_array):
+    image_format = "PNG"
+    stac_list=[stac_item for i in range(2)]
+    stac_reader = ReadSTAC()
+    params = {
+            "feature_geojson": feature_geojson,
+            "stac_list": stac_list,
+            "image_format": image_format,
+            "expression":"red-green",
+            "compute_min_max": True,
+            "max_size": 52,
+            "image_as_array": True
+    }
+    image_data = stac_reader.render_mosaic_from_stac(params)
+    assert isinstance(image_data["image"], type(sample_image_array))
+    assert isinstance(image_data["bounds"], list)
+    assert isinstance(image_data["projection_file"], str)
+
+def test_render_mosaic_compute_minmax(stac_item, feature_geojson, sample_image):
+    image_format = "PNG"
+    stac_list=[stac_item for i in range(2)]
+    stac_reader = ReadSTAC()
+    params = {
+            "feature_geojson": feature_geojson,
+            "stac_list": stac_list,
+            "image_format": image_format,
+            "assets":("red", "green", "blue"),
+            "compute_min_max": True,
+            "max_size": 52
+    }
+    image_data = stac_reader.render_mosaic_from_stac(params)
+    assert isinstance(image_data["image"], type(sample_image))
+    assert isinstance(image_data["bounds"], list)
+    assert isinstance(image_data["projection_file"], str)
+
+def test_render_mosaic_rgb_expression_minmax(stac_item, feature_geojson, sample_image_array):
+    image_format = "PNG"
+    stac_list=[stac_item for i in range(2)]
+    stac_reader = ReadSTAC()
+    params = {
+            "feature_geojson": feature_geojson,
+            "stac_list": stac_list,
+            "image_format": image_format,
+            "RGB-expression":{"assets": ("blue", "red", "green",), "expression": "blue,red,green-blue"},
+            "compute_min_max": True,
+            "max_size": 52,
+            "image_as_array": True
+    }
+    image_data = stac_reader.render_mosaic_from_stac(params)
+    assert isinstance(image_data["image"], type(sample_image_array))
+    assert isinstance(image_data["bounds"], list)
+    assert isinstance(image_data["projection_file"], str)
+
+def test_render_mosaic_zip_min_max(stac_item, feature_geojson, sample_image_zip):
+    image_format = "PNG"
+    stac_list=[stac_item for i in range(2)]
+    stac_reader = ReadSTAC()
+    params = {
+            "feature_geojson": feature_geojson,
+            "stac_list": stac_list,
+            "image_format": image_format,
+            "zip_file": True,
+            "assets":("red", "green", "blue"),
+            "compute_min_max": True,
+            "max_size": 52
+    }
+    image_data = stac_reader.render_mosaic_from_stac(params)
+    assert isinstance(image_data["zip_file"], type(sample_image_zip))
+
+
+def test_render_mosaic_image_array_minmax(stac_item, feature_geojson, sample_image_array):
+    image_format = "PNG"
+    stac_list=[stac_item for i in range(2)]
+    stac_reader = ReadSTAC()
+    params = {
+            "feature_geojson": feature_geojson,
+            "stac_list": stac_list,
+            "image_format": image_format,
+            "assets":("red", "green", "blue"),
+            "compute_min_max": True,
             "max_size": 52,
             "image_as_array": True
     }
