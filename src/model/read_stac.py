@@ -213,9 +213,11 @@ class ReadSTAC:
         neighborhood_size = (50, 50)
         local_max = maximum_filter(image_data.data[0], footprint=np.ones(neighborhood_size))
         local_max_points = np.argwhere(image_data.data[0] == local_max)
-
+        features_point = []
         for point in local_max_points:
             pixel_value = image_data.data[0, point[0], point[1]]
+            if pixel_value==0:
+                continue
             geom = affine_transform(Point(point[1], point[0]), transform.to_shapely())
             intersection = geom.intersection(feature_geometry)
             if intersection:
@@ -224,8 +226,12 @@ class ReadSTAC:
                     "geometry":  mapping(intersection),
                     "properties": {"pixel_value": round(float(pixel_value),self.float_precision)}
                 }
-                features.append(point_feature)
+                features_point.append(point_feature)
 
+        features_point = sorted(
+            features_point, key=lambda x: x.get("properties",{}).get("pixel_value"), reverse=True)
+        features_point = features_point[:5]
+        features += features_point
         feat_collection = {
             "type": "FeatureCollection",
             "features": features
