@@ -80,7 +80,7 @@ class WebMap:
             return {"geometry":None}
         return {"geometry": user_data["last_active_drawing"]["geometry"]}
 
-    def add_image(self, image, image_bounds, name='satelite image'):
+    def add_image(self, image, image_bounds, name="satelite image"):
 
         image_overlay = folium.raster_layers.ImageOverlay(
             image=image,
@@ -105,3 +105,34 @@ class WebMap:
         },
         )
         polygon.add_to(self.web_map)
+
+    def add_contour(self, geojson_contour):
+        tooltip = folium.GeoJsonTooltip(
+            fields=["pixel_value"],
+            aliases=["Altitude (m) :"],
+        )
+        popup = folium.GeoJsonPopup(
+            fields=["pixel_value"],
+            aliases=["Altitude (m) :"],
+        )
+        highlight_function = lambda x: {
+            "fillColor": None,
+            "color": "yellow",
+            "weight": 2,
+            "fill": None
+        }
+        contour = folium.GeoJson(
+            geojson_contour,
+            name="contour",
+            show=True,
+            style_function=lambda feature: {
+                "fillColor": None,
+                "fill": None,
+                "color": "orange",
+                "weight": 1.3,
+            },
+            tooltip=tooltip,
+            popup=popup,
+            highlight_function=highlight_function
+        )
+        contour.add_to(self.web_map)

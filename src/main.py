@@ -145,7 +145,9 @@ def mosaic_render(
     colormap,
     enhance_image,
     enhance_passes,
-    compute_min_max
+    compute_min_max,
+    create_contour,
+    contour_gap
     ):
     feature_geojson = {
         "type": "Feature",
@@ -173,6 +175,8 @@ def mosaic_render(
         params.pop("expression")
     if "RGB-expression" in params:
         params.pop("RGB-expression")
+    if create_contour:
+        params.update({"create_contour": create_contour, "gap": contour_gap})
     params.update(view_params)
     params.update({"min_value":image_range[0], "max_value":image_range[1]})
     params.update({"color_formula": color_formula, "colormap":colormap})
@@ -292,8 +296,16 @@ def create_options_menu(satellite_sensor_params):
 
                 enhance_passes = round(int(enhance_power.strip("x")) ** (1/4))
         with col3:
-            compute_min_max = ste.checkbox(
-                "Compute min max from image", value=False, key="compute-min-max")
+            compute_min_max = True
+
+            if satellite_sensor_params.get("collection_name")!="cop-dem-glo-30":
+                compute_min_max = ste.checkbox(
+                    "Compute min max from image", value=False, key="compute-min-max")
+
+        if satellite_sensor_params.get("collection_name")=="cop-dem-glo-30" \
+            and compute_min_max == False:
+                st.query_params["compute-min-max"] = True
+                compute_min_max = True
 
         buffer_width = float(app_config_data.buffer_width)/(enhance_passes+1)
 
@@ -332,8 +344,9 @@ def create_options_menu(satellite_sensor_params):
             image_range_min = 0
             image_range_max = 1
             col3, col4 = st.columns(2)
-            if not compute_min_max:
-                with col3:
+
+            with col3:
+                if not compute_min_max:
                     image_range_min = st.number_input(
                         "Image min value",
                         value=min_max_range["default"][0],
@@ -342,7 +355,8 @@ def create_options_menu(satellite_sensor_params):
                         key="img-min"
                     )
 
-                with col4:
+            with col4:
+                if not compute_min_max:
                     image_range_max = st.number_input(
                         "Image max value",
                         value=min_max_range["default"][1],
@@ -350,6 +364,18 @@ def create_options_menu(satellite_sensor_params):
                         max_value=min_max_range["range"][1],
                         key="img-max"
                     )
+                create_contour = False
+                contour_gap = 10
+                if satellite_sensor_params.get("collection_name")=="cop-dem-glo-30" :
+                    create_contour = True
+                    contour_gap = ste.number_input(
+                        "contour equidistance (m)",
+                        min_value=1,
+                        max_value=1000,
+                        value=contour_gap,
+                        key="contour-gap"
+                    )
+
 
             image_range = (image_range_min, image_range_max)
             view_param = {view_mode: satellite_sensor_params[view_mode][selected_bands]}
@@ -374,7 +400,9 @@ def create_options_menu(satellite_sensor_params):
                 "enhance_image": enhance_image,
                 "enhance_passes": enhance_passes,
                 "buffer_width": buffer_width,
-                "compute_min_max": compute_min_max
+                "compute_min_max": compute_min_max,
+                "create_contour": create_contour,
+                "contour_gap": contour_gap
             }
 
         col1, col2 = st.columns(2)
@@ -430,7 +458,9 @@ def create_options_menu(satellite_sensor_params):
             "enhance_image": enhance_image,
             "enhance_passes": enhance_passes,
             "buffer_width": buffer_width,
-            "compute_min_max": compute_min_max
+            "compute_min_max": compute_min_max,
+            "create_contour": create_contour,
+            "contour_gap": contour_gap
         }
 
 def create_gif_menu(
@@ -546,6 +576,8 @@ def main():
     enhance_passes = options_menu_values["enhance_passes"]
     buffer_width = options_menu_values["buffer_width"]
     compute_min_max = options_menu_values["compute_min_max"]
+    create_contour = options_menu_values["create_contour"]
+    contour_gap = options_menu_values["contour_gap"]
     start_date = datetime.strptime(
         satellite_sensor_params.get("start_date"),
         "%Y-%m-%d"
@@ -686,7 +718,9 @@ def main():
             colormap,
             enhance_image,
             enhance_passes,
-            compute_min_max
+            compute_min_max,
+            create_contour,
+            contour_gap
             )
 
         with col1:
@@ -708,6 +742,8 @@ def main():
             )
         }
         web_map.add_polygon(feature_geojson)
+        if create_contour:
+            web_map.add_contour(image_data["contours"])
         with col2:
             st.write(f"Min/Max values input: {image_data['min_value']:.2f}/{image_data['max_value']:.2f}")
     with col3:

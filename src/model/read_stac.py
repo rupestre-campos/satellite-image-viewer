@@ -4,12 +4,20 @@ import json
 from PIL import Image
 import numpy as np
 from rasterio import warp
+from rasterio.transform import Affine
+from rasterio.features import shapes
 from rio_tiler.io import STACReader
 from rio_tiler.models import ImageData
 from rio_tiler.mosaic import mosaic_reader
 from rio_tiler.colormap import cmap
+from shapely.affinity import affine_transform
+from shapely.geometry import LineString, MultiLineString, mapping, shape
 import numexpr as ne
 from ISR.models import RDN
+from skimage.measure import find_contours
+from scipy.signal import convolve2d
+from skimage.transform import resize
+from scipy.ndimage import gaussian_filter1d
 
 rdn = RDN(weights='psnr-small')
 
@@ -106,7 +114,7 @@ class ReadSTAC:
             f"{image_bounds[1][0]}\n"
         )
 
-    def __create_zip_geoimage(self, image, world_file, image_format, geometry, assets_used):
+    def __create_zip_geoimage(self, image, world_file, image_format, geometry, assets_used, contours):
         extension = image_format.lower()
         extension_world_file = self.formats[image_format].lower()
         zip_buffer = io.BytesIO()
@@ -116,6 +124,8 @@ class ReadSTAC:
             zip_file.writestr(f"image.{extension_world_file}", world_file.encode())
             zip_file.writestr(f"polygon.geojson", json.dumps(geometry).encode())
             zip_file.writestr(f"image_metadata.geojson", json.dumps(image_metadata).encode())
+            if contours:
+                zip_file.writestr(f"contours.geojson", json.dumps(contours).encode())
 
         return zip_buffer.getvalue()
 
@@ -154,10 +164,63 @@ class ReadSTAC:
             colormap=colormap
         )
 
+    def __get_transform(self, transformed_bounds, width, height):
+        min_y, min_x = transformed_bounds[0]
+        max_y, max_x = transformed_bounds[1]
+
+        pixel_size_x = round((max_x - min_x) / width, self.float_precision)
+        pixel_size_y = round((max_y - min_y) / height, self.float_precision)
+
+        transform = Affine(pixel_size_x, 0.0, min_x,
+                           0.0, -pixel_size_y, max_y)
+        return transform
+
+    @staticmethod
+    def __create_discrete_image(image, value_gap):
+        discrete_image = (np.floor((image + value_gap + 1) / value_gap) * value_gap) - value_gap
+        return discrete_image
+
+    @staticmethod
+    def __contours_to_multiline(image, contour_value, transform, min_vertices, sigma):
+        features = []
+        for contour in find_contours(image, contour_value):
+            if contour.shape[0] < min_vertices:
+                continue
+            smoothed_coords = np.column_stack((
+                gaussian_filter1d(contour[:, 0], sigma=sigma),
+                gaussian_filter1d(contour[:, 1], sigma=sigma)
+            ))
+            if np.allclose(contour[0],contour[-1]):
+                smoothed_coords = np.vstack((smoothed_coords, smoothed_coords[0]))
+            features.append(LineString(smoothed_coords[:,[1,0]].astype(np.float64)))
+        return affine_transform(MultiLineString(features), transform.to_shapely())
+
+    def __get_contours(self, feature_geojson, quantized_image, transform, min_vertices, sigma):
+        feature_geometry = shape(feature_geojson['geometry'])
+        features = []
+        for pixel_value in np.unique(quantized_image):
+            geom = self.__contours_to_multiline(
+                quantized_image[0], pixel_value, transform, min_vertices, sigma)
+            intersection = geom.intersection(feature_geometry)
+            if intersection:
+                feature = {
+                    "type": "Feature",
+                    "geometry": mapping(intersection),
+                    "properties": {"pixel_value": float(pixel_value)}
+                }
+                features.append(feature)
+
+        feat_collection = {
+            "type": "FeatureCollection",
+            "features": features
+        }
+        return feat_collection
+
     def render_mosaic_from_stac(self, params):
         if params.get("image_format") not in self.formats:
             raise ValueError("Format not accepted")
-        args = (params.get("feature_geojson"), )
+        feature_geojson = params.get("feature_geojson")
+        args = (feature_geojson, )
         view_type, view_params  = self.__get_view_params(params)
         kwargs = {
             view_type:  view_params,
@@ -168,11 +231,15 @@ class ReadSTAC:
         image_data, assets_used = mosaic_reader(
             params.get("stac_list"), self.__tiler, *args, **kwargs)
         image_bounds = self.__get_image_bounds(image_data)
+        transform = self.__get_transform(image_bounds, image_data.width, image_data.height)
 
         if params.get("RGB-expression"):
             image_data = self.__process_rgb_expression(image_data, params)
-
-        if params.get("compute_min_max"):
+        min_value = params.get("min_value")
+        max_value = params.get("max_value")
+        if params.get("compute_min_max") \
+            or not min_value \
+            or not max_value:
             min_value = round(
                 image_data.data[image_data.data!=params.get("nodata")].min(), self.float_precision)
             max_value = round(
@@ -188,6 +255,14 @@ class ReadSTAC:
                 image = self.__enhance_image(image, params)
 
         world_file = self.__get_world_file_content(image_bounds, image)
+        contours = {}
+        if params.get("create_contour"):
+            min_vertices = params.get("min_vertices", 7)
+            sigma = params.get("sigma", 1)
+            gap = params.get("gap", 10)
+            preprocessed_dem = self.__create_discrete_image(image_data.data, gap)
+            contours = self.__get_contours(
+                feature_geojson, preprocessed_dem, transform, min_vertices, sigma)
 
         if params.get("zip_file"):
             zip_file = self.__create_zip_geoimage(
@@ -195,7 +270,8 @@ class ReadSTAC:
                 world_file,
                 params.get("image_format"),
                 params.get("feature_geojson"),
-                assets_used
+                assets_used,
+                contours
             )
 
         if params.get("image_as_array"):
@@ -206,6 +282,7 @@ class ReadSTAC:
                 "image": image,
                 "bounds": image_bounds,
                 "zip_file": zip_file,
+                "contours": contours,
                 "min_value": params.get("min_value"),
                 "max_value": params.get("max_value"),
                 "name": ", ".join(sorted([item["id"] for item in assets_used]))
@@ -216,6 +293,7 @@ class ReadSTAC:
             "projection_file": world_file,
             "bounds": image_bounds,
             "assets_used": assets_used,
+            "contours": contours,
             "min_value": params.get("min_value"),
             "max_value": params.get("max_value"),
             "name": ", ".join(sorted([item["id"] for item in assets_used]))
