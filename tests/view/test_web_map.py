@@ -61,7 +61,7 @@ def test_render_web_map_empty(web_map):
     assert web_map.render_web_map() == {"geometry": None}
 
 def test_render_web_map_drawn(mocker, web_map, feature_geojson):
-    test_value = {"last_active_drawing":{"geometry":feature_geojson}}
+    test_value = {"all_drawings":[{"geometry":feature_geojson}]}
     mocker.patch("view.web_map.WebMap._streamlit_render", return_value=test_value)
     assert web_map.render_web_map() == {"geometry":feature_geojson}
 
