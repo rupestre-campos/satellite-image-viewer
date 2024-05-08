@@ -206,7 +206,7 @@ class ReadSTAC:
                 feature = {
                     "type": "Feature",
                     "geometry": mapping(intersection),
-                    "properties": {"pixel_value": float(pixel_value)}
+                    "properties": {"pixel_value": round(float(pixel_value),self.float_precision) }
                 }
                 features.append(feature)
 
@@ -222,7 +222,7 @@ class ReadSTAC:
                 point_feature = {
                     "type": "Feature",
                     "geometry":  mapping(intersection),
-                    "properties": {"pixel_value": float(pixel_value)}
+                    "properties": {"pixel_value": round(float(pixel_value),self.float_precision)}
                 }
                 features.append(point_feature)
 
