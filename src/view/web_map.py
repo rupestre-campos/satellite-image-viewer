@@ -71,14 +71,14 @@ class WebMap:
             self.web_map,
             use_container_width=True,
             pixelated=pixelated,
-            returned_objects=["last_active_drawing"],
+            returned_objects=["all_drawings"],
         )
 
     def render_web_map(self, pixelated=True):
         user_data = self._streamlit_render(pixelated)
-        if not user_data["last_active_drawing"]:
+        if not user_data["all_drawings"]:
             return {"geometry":None}
-        return {"geometry": user_data["last_active_drawing"]["geometry"]}
+        return {"geometry": user_data["all_drawings"][0]["geometry"]}
 
     def add_image(self, image, image_bounds, name="satelite image"):
 
@@ -108,21 +108,12 @@ class WebMap:
 
     @staticmethod
     def contour_style_function(feature):
-        geometry_type = feature["geometry"]["type"]
-
-        if "LineString" in geometry_type:
-            # Style for multi-line strings (contours)
-            style = {
+        return {
                 "fillColor": None,
                 "fill": None,
                 "color": "orange",
                 "weight": 1.3,
             }
-        else:
-            # Default style
-            style = {}
-
-        return style
 
     def add_contour(self, geojson_contour):
         tooltip = folium.GeoJsonTooltip(
@@ -149,6 +140,7 @@ class WebMap:
             style_function=lambda x: self.contour_style_function(x),
             tooltip=tooltip,
             popup=popup,
+            popup_keep_highlighted=True,
             highlight_function=highlight_function
         )
         contour.add_to(self.web_map)
