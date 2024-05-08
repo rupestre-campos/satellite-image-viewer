@@ -63,5 +63,5 @@ def run_streamlit():
 def test_page(page: Page):
     # Check page loads
     # huge timeout here as local testing is slow
-    page.set_default_timeout(50000)
+    page.set_default_timeout(100000)
     expect(page).to_have_title("Satellite Image Viewer")

@@ -365,7 +365,7 @@ def create_options_menu(satellite_sensor_params):
                         key="img-max"
                     )
                 create_contour = False
-                contour_gap = 10
+                contour_gap = 5
                 if satellite_sensor_params.get("collection_name")=="cop-dem-glo-30" :
                     create_contour = True
                     contour_gap = ste.number_input(
