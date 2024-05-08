@@ -16,7 +16,7 @@ from ISR.models import RDN
 from skimage.measure import find_contours
 from scipy.ndimage import gaussian_filter1d
 from scipy.ndimage import maximum_filter
-from scipy.ndimage import uniform_filter
+
 
 rdn = RDN(weights='psnr-small')
 
