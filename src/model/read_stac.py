@@ -5,7 +5,6 @@ from PIL import Image
 import numpy as np
 from rasterio import warp
 from rasterio.transform import Affine
-from rasterio.features import shapes
 from rio_tiler.io import STACReader
 from rio_tiler.models import ImageData
 from rio_tiler.mosaic import mosaic_reader
@@ -15,8 +14,6 @@ from shapely.geometry import LineString, MultiLineString, mapping, shape
 import numexpr as ne
 from ISR.models import RDN
 from skimage.measure import find_contours
-from scipy.signal import convolve2d
-from skimage.transform import resize
 from scipy.ndimage import gaussian_filter1d
 
 rdn = RDN(weights='psnr-small')
@@ -195,7 +192,7 @@ class ReadSTAC:
             features.append(LineString(smoothed_coords[:,[1,0]].astype(np.float64)))
         return affine_transform(MultiLineString(features), transform.to_shapely())
 
-    def __get_contours(self, feature_geojson, quantized_image, transform, min_vertices, sigma):
+    def get_contours(self, feature_geojson, quantized_image, transform, min_vertices, sigma):
         feature_geometry = shape(feature_geojson['geometry'])
         features = []
         for pixel_value in np.unique(quantized_image):
@@ -237,9 +234,7 @@ class ReadSTAC:
             image_data = self.__process_rgb_expression(image_data, params)
         min_value = params.get("min_value")
         max_value = params.get("max_value")
-        if params.get("compute_min_max") \
-            or not min_value \
-            or not max_value:
+        if params.get("compute_min_max"):
             min_value = round(
                 image_data.data[image_data.data!=params.get("nodata")].min(), self.float_precision)
             max_value = round(
@@ -261,7 +256,7 @@ class ReadSTAC:
             sigma = params.get("sigma", 1)
             gap = params.get("gap", 10)
             preprocessed_dem = self.__create_discrete_image(image_data.data, gap)
-            contours = self.__get_contours(
+            contours = self.get_contours(
                 feature_geojson, preprocessed_dem, transform, min_vertices, sigma)
 
         if params.get("zip_file"):

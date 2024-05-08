@@ -37,6 +37,11 @@ def feature_geojson():
         }
 
 @pytest.fixture
+def feature_contours():
+    with open("tests/data/contours.geojson") as test_data:
+        return json.load(test_data)
+
+@pytest.fixture
 def sample_image():
     with io.BytesIO() as buffer:
         # Write array to buffer
@@ -256,41 +261,6 @@ def test_render_mosaic_image_expression(stac_item, feature_geojson, sample_image
     assert isinstance(image_data["bounds"], list)
     assert isinstance(image_data["projection_file"], str)
 
-def test_render_mosaic_image_expression_max_null(stac_item, feature_geojson, sample_image_array):
-    image_format = "PNG"
-    stac_list=[stac_item for i in range(2)]
-    stac_reader = ReadSTAC()
-    params = {
-            "feature_geojson": feature_geojson,
-            "stac_list": stac_list,
-            "image_format": image_format,
-            "expression":"red-green",
-            "min_value": 0,
-            "max_size": 52,
-            "image_as_array": True
-    }
-    image_data = stac_reader.render_mosaic_from_stac(params)
-    assert isinstance(image_data["image"], type(sample_image_array))
-    assert isinstance(image_data["bounds"], list)
-    assert isinstance(image_data["projection_file"], str)
-
-def test_render_mosaic_image_expression_min_null(stac_item, feature_geojson, sample_image_array):
-    image_format = "PNG"
-    stac_list=[stac_item for i in range(2)]
-    stac_reader = ReadSTAC()
-    params = {
-            "feature_geojson": feature_geojson,
-            "stac_list": stac_list,
-            "image_format": image_format,
-            "expression":"red-green",
-            "max_value": 100,
-            "max_size": 52,
-            "image_as_array": True
-    }
-    image_data = stac_reader.render_mosaic_from_stac(params)
-    assert isinstance(image_data["image"], type(sample_image_array))
-    assert isinstance(image_data["bounds"], list)
-    assert isinstance(image_data["projection_file"], str)
 
 def test_render_mosaic_image_expression_minmax(stac_item, feature_geojson, sample_image_array):
     image_format = "PNG"
@@ -309,6 +279,27 @@ def test_render_mosaic_image_expression_minmax(stac_item, feature_geojson, sampl
     assert isinstance(image_data["image"], type(sample_image_array))
     assert isinstance(image_data["bounds"], list)
     assert isinstance(image_data["projection_file"], str)
+
+def test_render_mosaic_image_expression_minmax_false(stac_item, feature_geojson, sample_image_array):
+    image_format = "PNG"
+    stac_list=[stac_item for i in range(2)]
+    stac_reader = ReadSTAC()
+    params = {
+            "feature_geojson": feature_geojson,
+            "stac_list": stac_list,
+            "image_format": image_format,
+            "expression":"red-green",
+            "compute_min_max": False,
+            "min_value": 0,
+            "max_value": 100,
+            "max_size": 52,
+            "image_as_array": True
+    }
+    image_data = stac_reader.render_mosaic_from_stac(params)
+    assert isinstance(image_data["image"], type(sample_image_array))
+    assert isinstance(image_data["bounds"], list)
+    assert isinstance(image_data["projection_file"], str)
+
 
 def test_render_mosaic_compute_minmax(stac_item, feature_geojson, sample_image):
     image_format = "PNG"
@@ -380,21 +371,25 @@ def test_render_mosaic_image_array_minmax(stac_item, feature_geojson, sample_ima
     assert isinstance(image_data["bounds"], list)
     assert isinstance(image_data["projection_file"], str)
 
-def test_render_mosaic_image_expression_contour(stac_item, feature_geojson, sample_image_array):
+def test_render_mosaic_image_expression_contour(
+        stac_item, feature_geojson, sample_image_array):
     image_format = "PNG"
-    stac_list=[stac_item for i in range(2)]
+    stac_list=[stac_item]
     stac_reader = ReadSTAC()
     params = {
             "feature_geojson": feature_geojson,
             "stac_list": stac_list,
             "image_format": image_format,
-            "expression":"red*2",
+            "expression":"red*1000",
             "max_size": None,
             "image_as_array": True,
             "create_contour": True,
-            "gap": 1
+            "compute_min_max": True,
+            "gap": 1,
+            "zip_file": True
     }
     image_data = stac_reader.render_mosaic_from_stac(params)
+
     assert isinstance(image_data["image"], type(sample_image_array))
     assert isinstance(image_data["bounds"], list)
-    assert isinstance(image_data["projection_file"], str)
+    assert isinstance(image_data["contours"], type(feature_geojson))

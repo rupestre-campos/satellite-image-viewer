@@ -20,6 +20,11 @@ def feature_geojson():
         return json.load(test_data)
 
 @pytest.fixture
+def feature_contours():
+    with open("tests/data/contours.geojson") as test_data:
+        return json.load(test_data)
+
+@pytest.fixture
 def sample_image():
     return np.zeros(50)
 
@@ -79,3 +84,7 @@ def test_add_basemap(web_map, tile_url):
     map_children = list(web_map.web_map._children.keys())
     basemap_child = [item for item in map_children if item.startswith('tile_layer')]
     assert len(basemap_child) == 1
+
+def test_add_contour(web_map, feature_contours):
+    web_map.add_contour(feature_contours)
+    assert isinstance(web_map, WebMap)
