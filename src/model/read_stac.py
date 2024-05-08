@@ -10,11 +10,13 @@ from rio_tiler.models import ImageData
 from rio_tiler.mosaic import mosaic_reader
 from rio_tiler.colormap import cmap
 from shapely.affinity import affine_transform
-from shapely.geometry import LineString, MultiLineString, mapping, shape
+from shapely.geometry import LineString, MultiLineString, Point, mapping, shape
 import numexpr as ne
 from ISR.models import RDN
 from skimage.measure import find_contours
 from scipy.ndimage import gaussian_filter1d
+from scipy.ndimage import maximum_filter
+from scipy.ndimage import uniform_filter
 
 rdn = RDN(weights='psnr-small')
 
@@ -178,7 +180,7 @@ class ReadSTAC:
         return discrete_image
 
     @staticmethod
-    def __contours_to_multiline(image, contour_value, transform, min_vertices, sigma):
+    def __contours_from_image(image, contour_value, transform, min_vertices, sigma):
         features = []
         for contour in find_contours(image, contour_value):
             if contour.shape[0] < min_vertices:
@@ -189,14 +191,15 @@ class ReadSTAC:
             ))
             if np.allclose(contour[0],contour[-1]):
                 smoothed_coords = np.vstack((smoothed_coords, smoothed_coords[0]))
-            features.append(LineString(smoothed_coords[:,[1,0]].astype(np.float64)))
+            features.append(LineString(smoothed_coords[:,[1,0]]))
         return affine_transform(MultiLineString(features), transform.to_shapely())
 
-    def get_contours(self, feature_geojson, quantized_image, transform, min_vertices, sigma):
+    def __get_contours(self, feature_geojson, image_data, gap, transform, min_vertices, sigma):
+        quantized_image = self.__create_discrete_image(image_data.data, gap)
         feature_geometry = shape(feature_geojson['geometry'])
         features = []
         for pixel_value in np.unique(quantized_image):
-            geom = self.__contours_to_multiline(
+            geom = self.__contours_from_image(
                 quantized_image[0], pixel_value, transform, min_vertices, sigma)
             intersection = geom.intersection(feature_geometry)
             if intersection:
@@ -206,6 +209,22 @@ class ReadSTAC:
                     "properties": {"pixel_value": float(pixel_value)}
                 }
                 features.append(feature)
+
+        neighborhood_size = (50, 50)
+        local_max = maximum_filter(image_data.data[0], footprint=np.ones(neighborhood_size))
+        local_max_points = np.argwhere(image_data.data[0] == local_max)
+
+        for point in local_max_points:
+            pixel_value = image_data.data[0, point[0], point[1]]
+            geom = affine_transform(Point(point[1], point[0]), transform.to_shapely())
+            intersection = geom.intersection(feature_geometry)
+            if intersection:
+                point_feature = {
+                    "type": "Feature",
+                    "geometry":  mapping(intersection),
+                    "properties": {"pixel_value": float(pixel_value)}
+                }
+                features.append(point_feature)
 
         feat_collection = {
             "type": "FeatureCollection",
@@ -253,11 +272,11 @@ class ReadSTAC:
         contours = {}
         if params.get("create_contour"):
             min_vertices = params.get("min_vertices", 7)
-            sigma = params.get("sigma", 1)
+            sigma = params.get("sigma", 0.8)
             gap = params.get("gap", 10)
-            preprocessed_dem = self.__create_discrete_image(image_data.data, gap)
-            contours = self.get_contours(
-                feature_geojson, preprocessed_dem, transform, min_vertices, sigma)
+
+            contours = self.__get_contours(
+                feature_geojson, image_data, gap, transform, min_vertices, sigma)
 
         if params.get("zip_file"):
             zip_file = self.__create_zip_geoimage(

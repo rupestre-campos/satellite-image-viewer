@@ -1,7 +1,7 @@
 import folium
 from folium.plugins import Draw, Fullscreen, MousePosition
 from streamlit_folium import st_folium
-
+from folium.plugins import BeautifyIcon
 
 class WebMap:
     def __init__(
@@ -106,6 +106,24 @@ class WebMap:
         )
         polygon.add_to(self.web_map)
 
+    @staticmethod
+    def contour_style_function(feature):
+        geometry_type = feature["geometry"]["type"]
+
+        if "LineString" in geometry_type:
+            # Style for multi-line strings (contours)
+            style = {
+                "fillColor": None,
+                "fill": None,
+                "color": "orange",
+                "weight": 1.3,
+            }
+        else:
+            # Default style
+            style = {}
+
+        return style
+
     def add_contour(self, geojson_contour):
         tooltip = folium.GeoJsonTooltip(
             fields=["pixel_value"],
@@ -121,16 +139,14 @@ class WebMap:
             "weight": 2,
             "fill": None
         }
+
         contour = folium.GeoJson(
             geojson_contour,
             name="contour",
             show=True,
-            style_function=lambda feature: {
-                "fillColor": None,
-                "fill": None,
-                "color": "orange",
-                "weight": 1.3,
-            },
+            marker=folium.Marker(
+                icon=folium.Icon(icon="plus", angle=45, color="orange", icon_color="black")),
+            style_function=lambda x: self.contour_style_function(x),
             tooltip=tooltip,
             popup=popup,
             highlight_function=highlight_function
