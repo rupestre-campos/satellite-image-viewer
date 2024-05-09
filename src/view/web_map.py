@@ -29,7 +29,7 @@ class WebMap:
 
     def add_mouse_location(self):
         MousePosition(
-            position="topright",
+            position="bottomright",
         ).add_to(self.web_map)
 
     def add_layer_control(self):
