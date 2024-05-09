@@ -535,6 +535,7 @@ def get_web_map():
     web_map.add_fullscreen()
     web_map.add_draw_support()
     web_map.add_mouse_location()
+    web_map.add_location_control()
     web_map.add_base_map(app_config_data.google_basemap, "google satellite", "google", show=True)
     web_map.add_base_map(app_config_data.open_street_maps, "open street maps", "open street maps")
     web_map.add_base_map(app_config_data.esri_basemap, "esri satellite", "esri")

@@ -1,7 +1,7 @@
 import folium
 from folium.plugins import Draw, Fullscreen, MousePosition
 from streamlit_folium import st_folium
-from folium.plugins import BeautifyIcon
+from folium.plugins import LocateControl
 
 class WebMap:
     def __init__(
@@ -144,3 +144,6 @@ class WebMap:
             highlight_function=highlight_function
         )
         contour.add_to(self.web_map)
+
+    def add_location_control(self):
+        LocateControl(auto_start=False, position="topright").add_to(self.web_map)
