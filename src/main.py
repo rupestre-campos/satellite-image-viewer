@@ -754,6 +754,7 @@ def main():
             create_download_gif_button(st.session_state["result_gif_image"])
 
     web_map.add_layer_control()
+    web_map.add_location_control()
     user_draw = web_map.render_web_map(pixelated=True)
     create_powered_by_menu()
     if user_draw["geometry"] != None \

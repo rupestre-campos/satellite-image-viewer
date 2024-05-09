@@ -93,3 +93,9 @@ def test_contour_style(web_map, feature_contours):
     for feature in feature_contours.get("features"):
         style = web_map.contour_style_function(feature)
         assert isinstance(style, dict)
+
+def test_locate_control(web_map):
+    web_map.add_location_control()
+    map_children = list(web_map.web_map._children.keys())
+    gps_child = [item for item in map_children if item.startswith('locate')]
+    assert len(gps_child) == 1
