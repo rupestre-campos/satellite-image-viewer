@@ -194,7 +194,17 @@ class ReadSTAC:
             features.append(LineString(smoothed_coords[:,[1,0]]))
         return affine_transform(MultiLineString(features), transform.to_shapely())
 
-    def __get_contours(self, feature_geojson, image_data, gap, transform, min_vertices, sigma):
+    def __get_contours(
+            self,
+            feature_geojson,
+            image_data,
+            gap,
+            transform,
+            min_vertices,
+            sigma,
+            limit_points,
+            neighborhood_size
+        ):
         quantized_image = self.__create_discrete_image(image_data.data, gap)
         feature_geometry = shape(feature_geojson['geometry'])
         features = []
@@ -202,35 +212,35 @@ class ReadSTAC:
             geom = self.__contours_from_image(
                 quantized_image[0], pixel_value, transform, min_vertices, sigma)
             intersection = geom.intersection(feature_geometry)
-            if intersection:
-                feature = {
-                    "type": "Feature",
-                    "geometry": mapping(intersection),
-                    "properties": {"pixel_value": round(float(pixel_value),self.float_precision) }
-                }
-                features.append(feature)
+            if not intersection:
+                continue
+            feature = {
+                "type": "Feature",
+                "geometry": mapping(intersection),
+                "properties": {"pixel_value": round(float(pixel_value),self.float_precision) }
+            }
+            features.append(feature)
 
-        neighborhood_size = (50, 50)
+        neighborhood_size = (neighborhood_size, neighborhood_size)
         local_max = maximum_filter(image_data.data[0], footprint=np.ones(neighborhood_size))
         local_max_points = np.argwhere(image_data.data[0] == local_max)
         features_point = []
         for point in local_max_points:
             pixel_value = image_data.data[0, point[0], point[1]]
-            if pixel_value==0:
-                continue
             geom = affine_transform(Point(point[1], point[0]), transform.to_shapely())
             intersection = geom.intersection(feature_geometry)
-            if intersection:
-                point_feature = {
-                    "type": "Feature",
-                    "geometry":  mapping(intersection),
-                    "properties": {"pixel_value": round(float(pixel_value),self.float_precision)}
-                }
-                features_point.append(point_feature)
+            if not intersection:
+                continue
+            point_feature = {
+                "type": "Feature",
+                "geometry":  mapping(intersection),
+                "properties": {"pixel_value": round(float(pixel_value),self.float_precision)}
+            }
+            features_point.append(point_feature)
 
         features_point = sorted(
             features_point, key=lambda x: x.get("properties",{}).get("pixel_value"), reverse=True)
-        features_point = features_point[:5]
+        features_point = features_point[:limit_points]
         features += features_point
         feat_collection = {
             "type": "FeatureCollection",
@@ -277,12 +287,21 @@ class ReadSTAC:
         world_file = self.__get_world_file_content(image_bounds, image)
         contours = {}
         if params.get("create_contour"):
-            min_vertices = params.get("min_vertices", 7)
+            min_vertices = params.get("min_vertices", 10)
             sigma = params.get("sigma", 0.8)
             gap = params.get("gap", 10)
-
+            limit_points = params.get("limit_points", 10)
+            neighborhood_size = params.get("neighborhood_size", 25)
             contours = self.__get_contours(
-                feature_geojson, image_data, gap, transform, min_vertices, sigma)
+                feature_geojson,
+                image_data,
+                gap,
+                transform,
+                min_vertices,
+                sigma,
+                limit_points,
+                neighborhood_size
+            )
 
         if params.get("zip_file"):
             zip_file = self.__create_zip_geoimage(

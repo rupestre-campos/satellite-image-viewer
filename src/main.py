@@ -365,16 +365,19 @@ def create_options_menu(satellite_sensor_params):
                         key="img-max"
                     )
                 create_contour = False
-                contour_gap = 5
+                contour_gap = app_config_data.default_contour_equidistance
                 if satellite_sensor_params.get("collection_name")=="cop-dem-glo-30" :
                     create_contour = True
-                    contour_gap = ste.number_input(
+
+                    contour_gap = ste.radio(
                         "contour equidistance (m)",
-                        min_value=1,
-                        max_value=1000,
-                        value=contour_gap,
+                        options=app_config_data.contour_equidistances,
+                        index=app_config_data.contour_equidistances.index(app_config_data.default_contour_equidistance),
                         key="contour-gap"
                     )
+                    if not contour_gap:
+                        contour_gap = app_config_data.default_contour_equidistance
+                    contour_gap = int(contour_gap)
 
 
             image_range = (image_range_min, image_range_max)
