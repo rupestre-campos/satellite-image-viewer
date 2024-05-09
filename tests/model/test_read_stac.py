@@ -27,6 +27,11 @@ def stac_item():
         return json.load(test_data)
 
 @pytest.fixture
+def stac_contour_items():
+    with open("tests/data/contour_items.json") as test_data:
+        return json.load(test_data)
+
+@pytest.fixture
 def feature_geojson():
     with open("tests/data/polygon_feature.geojson") as test_data:
         polygon_geojson = json.load(test_data)
@@ -37,9 +42,10 @@ def feature_geojson():
         }
 
 @pytest.fixture
-def feature_contours():
-    with open("tests/data/contours.geojson") as test_data:
-        return json.load(test_data)
+def feature_contour_geojson():
+    with open("tests/data/dem_polygon.geojson") as test_data:
+        polygon_geojson = json.load(test_data)
+    return  polygon_geojson
 
 @pytest.fixture
 def sample_image():
@@ -372,24 +378,23 @@ def test_render_mosaic_image_array_minmax(stac_item, feature_geojson, sample_ima
     assert isinstance(image_data["projection_file"], str)
 
 def test_render_mosaic_image_expression_contour(
-        stac_item, feature_geojson, sample_image_array):
+        stac_contour_items, feature_contour_geojson, sample_image_array):
     image_format = "PNG"
-    stac_list=[stac_item]
     stac_reader = ReadSTAC()
     params = {
-            "feature_geojson": feature_geojson,
-            "stac_list": stac_list,
+            "feature_geojson": feature_contour_geojson,
+            "stac_list": stac_contour_items,
             "image_format": image_format,
-            "expression":"red*1000",
+            "expression":"red",
             "max_size": None,
             "image_as_array": True,
             "create_contour": True,
             "compute_min_max": True,
-            "gap": 1,
+            "gap": 1000,
             "zip_file": True
     }
     image_data = stac_reader.render_mosaic_from_stac(params)
 
     assert isinstance(image_data["image"], type(sample_image_array))
     assert isinstance(image_data["bounds"], list)
-    assert isinstance(image_data["contours"], type(feature_geojson))
+    assert isinstance(image_data["contours"], type(feature_contour_geojson))

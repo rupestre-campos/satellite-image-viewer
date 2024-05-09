@@ -42,6 +42,8 @@ class AppConfig:
         self.default_composition_value_for_composite = os.getenv("DEFAULT_COMPOSITION_VALUE_COMPOSITE", "real-color (RGB)")
         self.enhance_image_default = os.getenv("DEFAULT_ENHANCE_IMAGE", "False").lower() in ('true', '1', 't')
         self.enhance_image_passes = os.getenv("ENHANCE_IMAGE_PASSES", "1,2")
+        self.contour_equidistances = [int(value) for value in os.getenv("CONTOUR_EQUIDISTANCES", "5,10,15,25,50,100").split(",")]
+        self.default_contour_equidistance = int(os.getenv("CONTOUR_EQUIDISTANCE", "5"))
 
     def __get_satellites_params(self):
         params = {}

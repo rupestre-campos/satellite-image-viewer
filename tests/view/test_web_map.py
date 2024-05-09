@@ -88,3 +88,8 @@ def test_add_basemap(web_map, tile_url):
 def test_add_contour(web_map, feature_contours):
     web_map.add_contour(feature_contours)
     assert isinstance(web_map, WebMap)
+
+def test_contour_style(web_map, feature_contours):
+    for feature in feature_contours.get("features"):
+        style = web_map.contour_style_function(feature)
+        assert isinstance(style, dict)

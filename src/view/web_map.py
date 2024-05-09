@@ -108,11 +108,14 @@ class WebMap:
 
     @staticmethod
     def contour_style_function(feature):
-        return {
-                "fillColor": None,
-                "fill": None,
+        pixel_value = feature.get("properties", {}).get("pixel_value", 5)
+        if str(int(pixel_value))[-1] == "0":
+            return {
                 "color": "orange",
-                "weight": 1.3,
+            }
+        return {
+                "color": "darkorange",
+                "dashArray" : "3, 6"
             }
 
     def add_contour(self, geojson_contour):
@@ -125,10 +128,7 @@ class WebMap:
             aliases=["Altitude (m) :"],
         )
         highlight_function = lambda x: {
-            "fillColor": None,
-            "color": "yellow",
-            "weight": 2,
-            "fill": None
+            "color": "red",
         }
 
         contour = folium.GeoJson(
