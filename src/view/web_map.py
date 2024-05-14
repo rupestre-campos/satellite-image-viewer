@@ -80,15 +80,17 @@ class WebMap:
             return {"geometry":None}
         return {"geometry": user_data["all_drawings"][0]["geometry"]}
 
-    def add_image(self, image, image_bounds, name="satelite image"):
+    def add_image(self, image, image_bounds, name="satelite image", opacity=100):
 
         image_overlay = folium.raster_layers.ImageOverlay(
             image=image,
             name=name,
-            opacity=1,
+            opacity=opacity,
             bounds=image_bounds,
+
         )
         image_overlay.add_to(self.web_map)
+
         self.web_map.fit_bounds(
             self.web_map.get_bounds(), padding=(30, 30))
 
