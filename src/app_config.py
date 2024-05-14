@@ -284,12 +284,12 @@ class AppConfig:
             "max_size": image_max_size,
             "platforms": platforms,
             "assets": {
-                "vv-vh-vv": (
+                "vv|vh|vv": (
                     vv,
                     vh,
                     vv
                 ),
-                "vv-vh-vh": (
+                "vv|vh|vh": (
                     vv,
                     vh,
                     vh
@@ -299,17 +299,15 @@ class AppConfig:
                 "vv": f"{vv}",
                 "vh": f"{vh}",
                 "vv/vh": f"{vv}/{vh}",
-                "swi": f"0.1747 * {vv} + 0.0082 * {vh} * {vv} + 0.0023 * {vv}**2 - 0.0015 * {vh}**2 + 0.1904"
+                "vh/vv": f"{vh}/{vv}",
+                #"swi": f"-(0.1747 * {vv} + 0.0082 * {vh} * {vv} + 0.0023 * {vv}**2 - 0.0015 * {vh}**2 + 0.1904)",
+                #"deforestation": f"2.5*where(sqrt({vv}*{vv}+{vh}*{vh})>0, (1/(25*(sqrt({vv}*{vv}+{vh}*{vh})))), 0) + where({vv}>0,(arctan2({vh},{vv})/(3.1415/2)),0)"
             },
             "RGB-expression": {
                 "vv|vh|vv/vh": {
                     "assets": (vv, vh),
-                    "expression":f"{vv},{vh},{vv}/{vh}"
+                    "expression":f"{vv},{vh},abs({vv})/abs({vh})"
                 },
-                "vv-vh|vh-vv|vv/vh": {
-                    "assets": (vv, vh),
-                    "expression":f"{vv}-{vh},{vh}-{vv},{vv}/{vh}"
-                }
             },
             "index_min_value": index_min_value,
             "index_max_value": index_max_value,

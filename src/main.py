@@ -379,7 +379,7 @@ def create_options_menu(satellite_sensor_params):
                         contour_gap = app_config_data.default_contour_equidistance
                     contour_gap = int(contour_gap)
 
-
+                opacity = st.slider("image opacity", min_value=0.0, max_value=1.0, value=1.0, step=0.1)
             image_range = (image_range_min, image_range_max)
             view_param = {view_mode: satellite_sensor_params[view_mode][selected_bands]}
 
@@ -405,7 +405,8 @@ def create_options_menu(satellite_sensor_params):
                 "buffer_width": buffer_width,
                 "compute_min_max": compute_min_max,
                 "create_contour": create_contour,
-                "contour_gap": contour_gap
+                "contour_gap": contour_gap,
+                "opacity": opacity
             }
 
         col1, col2 = st.columns(2)
@@ -463,58 +464,56 @@ def create_options_menu(satellite_sensor_params):
             "buffer_width": buffer_width,
             "compute_min_max": compute_min_max,
             "create_contour": create_contour,
-            "contour_gap": contour_gap
+            "contour_gap": contour_gap,
+            "opacity": opacity
         }
 
 def create_gif_menu(
         date_string, satellite_sensor_params, max_cloud_percent, view_param, buffer_width):
     create_gif_button = False
-    gif_check_box = False
-    if satellite_sensor_params["name"].lower() in app_config_data.allowed_gif_satellite:
-        gif_check_box = ste.checkbox("GIF creator", value=False, key="gif-creator")
-    if gif_check_box:
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            time_per_image = ste.number_input(
-                "Time per image (seconds)",
-                min_value=app_config_data.gif_min_time_per_image,
-                max_value=app_config_data.gif_max_time_per_image,
-                step=0.01,
-                value=app_config_data.gif_default_time_per_image,
-                key="gif-time"
-            )
-        with col2:
-            period_time_break = ste.number_input(
-                "Interval between images (days)",
-                min_value=app_config_data.gif_min_interval,
-                max_value=app_config_data.gif_max_interval,
-                value=app_config_data.gif_default_interval,
-                key="gif-interval"
-            )
-        with col3:
-            image_size = ste.number_input(
-                "Output image size (pixels)",
-                min_value=app_config_data.gif_min_img_size,
-                max_value=app_config_data.gif_max_img_size,
-                value=app_config_data.gif_default_img_size,
-                key="gif-size"
-            )
 
-        create_gif_button = st.button("Render GIF")
-        if create_gif_button:
-            result_gif_image = create_gif(
-                period_time_break=period_time_break,
-                satellite_params=satellite_sensor_params,
-                coords=st.session_state["geometry"],
-                buffer_width=buffer_width,
-                max_cloud_cover=max_cloud_percent,
-                time_per_image=time_per_image,
-                date_string=date_string,
-                view_params=view_param,
-                width=image_size,
-            )
-            st.session_state["result_gif_image"] = result_gif_image
-            result_gif_image = None
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        time_per_image = ste.number_input(
+            "Time per image (seconds)",
+            min_value=app_config_data.gif_min_time_per_image,
+            max_value=app_config_data.gif_max_time_per_image,
+            step=0.01,
+            value=app_config_data.gif_default_time_per_image,
+            key="gif-time"
+        )
+    with col2:
+        period_time_break = ste.number_input(
+            "Interval between images (days)",
+            min_value=app_config_data.gif_min_interval,
+            max_value=app_config_data.gif_max_interval,
+            value=app_config_data.gif_default_interval,
+            key="gif-interval"
+        )
+    with col3:
+        image_size = ste.number_input(
+            "Output image size (pixels)",
+            min_value=app_config_data.gif_min_img_size,
+            max_value=app_config_data.gif_max_img_size,
+            value=app_config_data.gif_default_img_size,
+            key="gif-size"
+        )
+
+    create_gif_button = st.button("Render GIF")
+    if create_gif_button:
+        result_gif_image = create_gif(
+            period_time_break=period_time_break,
+            satellite_params=satellite_sensor_params,
+            coords=st.session_state["geometry"],
+            buffer_width=buffer_width,
+            max_cloud_cover=max_cloud_percent,
+            time_per_image=time_per_image,
+            date_string=date_string,
+            view_params=view_param,
+            width=image_size,
+        )
+        st.session_state["result_gif_image"] = result_gif_image
+        result_gif_image = None
 
 def create_powered_by_menu():
     with st.expander("powered by:"):
@@ -581,6 +580,7 @@ def main():
     compute_min_max = options_menu_values["compute_min_max"]
     create_contour = options_menu_values["create_contour"]
     contour_gap = options_menu_values["contour_gap"]
+    opacity = options_menu_values["opacity"]
     start_date = datetime.strptime(
         satellite_sensor_params.get("start_date"),
         "%Y-%m-%d"
@@ -673,9 +673,15 @@ def main():
 
     selected_dates = (start_date, end_date)
     date_string = create_datestring_from_selected_dates(selected_dates)
-
-    create_gif_menu(
-        date_string, satellite_sensor_params, max_cloud_percent, view_param, buffer_width)
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        if satellite_sensor_params["name"].lower() in app_config_data.allowed_gif_satellite:
+            gif_check_box = ste.checkbox("GIF creator", value=False, key="gif-creator")
+            if gif_check_box:
+                create_gif_menu(
+                    date_string, satellite_sensor_params, max_cloud_percent, view_param, buffer_width)
+    with col2:
+        georreference_image = ste.checkbox("Adjust image position", value=False, key="georref-img")
 
     warning_area_user_input_location = st.empty()
     warning_area_user_input = st.empty()
@@ -706,7 +712,7 @@ def main():
         satellite_sensor_params["platforms"]
     )
 
-    col1, col2, col3 = st.columns(3)
+    col1, col2 = st.columns(2)
     if len(stac_items) == 0:
         warning_area_user_input.write(f":red[Search returned no results, change date or max cloud cover]")
     if len(stac_items) > 0:
@@ -725,15 +731,68 @@ def main():
             create_contour,
             contour_gap
             )
-
+        st.write(f'Image ID: {image_data["name"][:1024]}')
         with col1:
-            st.write(f'Image ID: {image_data["name"]}')
             create_download_zip_button(image_data["zip_file"], image_data["name"])
+
+        image_bounds = image_data["bounds"]
+
+        with col2:
+            if georreference_image:
+                colgeo_left, colgeo_center, colgeo_right = st.columns(3)
+                with colgeo_left:
+                    empty = st.write("\t")
+                    delta_x_left = st.number_input(
+                        "< West",
+                        step=0.0005,
+                        min_value=-1.0,
+                        max_value=1.0,
+                        value=float(st.query_params.get("deltaxl",0.0)),
+                        key="deltaxl",
+                        format="%f")
+                with colgeo_center:
+                    delta_y_up = st.number_input(
+                        "^ North",
+                        step=0.0005,
+                        min_value=-1.0,
+                        max_value=1.0,
+                        value=float(st.query_params.get("deltayu",0.0)),
+                        key="deltayu",
+                        format="%f")
+                    delta_y_down = st.number_input(
+                        "v South",
+                        step=0.0005,
+                        min_value=-1.0,
+                        max_value=1.0,
+                        value=float(st.query_params.get("deltayd",0.0)),
+                        key="deltayd",
+                        format="%f")
+                with colgeo_right:
+                    empty = st.write("\t")
+                    delta_x_right = st.number_input(
+                        "East >",
+                        step=0.0005,
+                        min_value=-1.0,
+                        max_value=1.0,
+                        value=float(st.query_params.get("deltaxr",0.0)),
+                        key="deltaxr",
+                        format="%f")
+
+                st.query_params["deltaxl"] = delta_x_left
+                st.query_params["deltaxr"] = delta_x_right
+                st.query_params["deltayu"] = delta_y_up
+                st.query_params["deltayd"] = delta_y_down
+
+                image_bounds = [
+                    [image_bounds[0][0]+delta_y_down, image_bounds[0][1]+delta_x_left],
+                    [image_bounds[1][0]+delta_y_up, image_bounds[1][1]+delta_x_right],
+                ]
 
         web_map.add_image(
             image_data["image"],
-            image_data["bounds"],
+            image_bounds,
             satellite_sensor_params["name"],
+            opacity
             )
         feature_geojson = {
             "type": "Feature",
@@ -747,9 +806,10 @@ def main():
         web_map.add_polygon(feature_geojson)
         if create_contour:
             web_map.add_contour(image_data["contours"])
-        with col2:
+        with col1:
             st.write(f"Min/Max values input: {image_data['min_value']:.2f}/{image_data['max_value']:.2f}")
-    with col3:
+
+    with col1:
         if st.session_state["result_gif_image"]:
             create_download_gif_button(st.session_state["result_gif_image"])
 
