@@ -9,6 +9,7 @@ class AppConfig:
         self.esri_basemap = os.getenv("ESRI_BASEMAP", "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}")
         self.buffer_width = int(os.getenv("BUFFER_WIDTH", "3000"))
         self.buffer_max_width = int(os.getenv("BUFFER_MAX_WIDTH", "3000"))
+        self.enable_buffer_control = os.getenv("ENABLE_BUFFER_CONTROL", "False").lower() in ('true', '1', 't')
         self.float_precision = int(os.getenv("FLOAT_PRECISION", 6))
         self.geocoder_url = os.getenv("GEOCODER_API_URL", "https://nominatim.openstreetmap.org/search")
         self.geocoder_api_key = os.getenv("GEOCODER_API_KEY", "abcd")
@@ -22,7 +23,9 @@ class AppConfig:
         self.default_cloud_cover = float(os.getenv("DEFAULT_CLOUD_COVER", "20.0"))
         self.cloud_cover_step = float(os.getenv("CLOUD_COVER_STEP", "0.3"))
         self.default_satellite_choice_index = int(os.getenv("DEFAULT_SATELLITE_CHOICE_INDEX", "0"))
+        self.default_stac_items = int(os.getenv("DEFAULT_STAC_ITEMS", "5"))
         self.max_stac_items = int(os.getenv("MAX_STAC_ITEMS", "5"))
+        self.enable_stac_items_control = os.getenv("ENABLE_STAC_ITEMS_CONTROL", "False").lower() in ('true', '1', 't')
         self.gif_min_time_per_image = float(os.getenv("GIF_MIN_TIME_PER_IMAGE_SEC", "0.1"))
         self.gif_default_time_per_image = float(os.getenv("GIF_DEFAULT_TIME_PER_IMAGE_SEC", "0.3"))
         self.gif_max_time_per_image = float(os.getenv("GIF_MAX_TIME_PER_IMAGE", "5"))
@@ -44,6 +47,9 @@ class AppConfig:
         self.enhance_image_passes = os.getenv("ENHANCE_IMAGE_PASSES", "1,2")
         self.contour_equidistances = [int(value) for value in os.getenv("CONTOUR_EQUIDISTANCES", "5,10,15,25,50,100").split(",")]
         self.default_contour_equidistance = int(os.getenv("CONTOUR_EQUIDISTANCE", "5"))
+        self.enable_max_pixels = os.getenv("ENABLE_MAX_PIXEL_CONTROL", "False").lower() in ('true', '1', 't')
+        self.max_pixels_image = int(os.getenv("MAX_PIXELS_IMAGE", "8196"))
+        self.default_pixels_image = int(os.getenv("DEFAULT_PIXELS_IMAGE", "1024"))
 
     def __get_satellites_params(self):
         params = {}

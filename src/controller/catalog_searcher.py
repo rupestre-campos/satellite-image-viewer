@@ -16,7 +16,8 @@ class CatalogSearcher:
             "max_items": params.get("max_items"),
             "collections": [params.get("collection")],
             "intersects": geometry,
-            "query": {}
+            "query": {},
+            "sortby": "-properties.datetime"
         }
         if params.get("collection") not in ("sentinel-1-grd", "cop-dem-glo-30"):
             kwargs["query"].update({

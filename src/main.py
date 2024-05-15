@@ -147,7 +147,8 @@ def mosaic_render(
     enhance_passes,
     compute_min_max,
     create_contour,
-    contour_gap
+    contour_gap,
+    max_size_pixels
     ):
     feature_geojson = {
         "type": "Feature",
@@ -167,7 +168,8 @@ def mosaic_render(
         "image_as_array": True,
         "enhance_image": enhance_image,
         "enhance_passes": enhance_passes,
-        "compute_min_max": compute_min_max
+        "compute_min_max": compute_min_max,
+        "max_size": max_size_pixels
     })
     if "assets" in params:
         params.pop("assets")
@@ -296,6 +298,34 @@ def create_options_menu(satellite_sensor_params):
 
                 enhance_passes = round(int(enhance_power.strip("x")) ** (1/4))
         with col3:
+            buffer_width_config = float(app_config_data.buffer_width)
+            if app_config_data.enable_buffer_control:
+                buffer_width_config = st.number_input(
+                    "Buffer width (m)",
+                    min_value=10,
+                    max_value=app_config_data.buffer_max_width,
+                    value=app_config_data.buffer_width
+                )
+
+            max_size_pixels = None
+            if app_config_data.enable_max_pixels:
+                max_size_pixels = ste.number_input(
+                    "how many pixels",
+                    min_value=10,
+                    max_value=app_config_data.max_pixels_image,
+                    value=app_config_data.default_pixels_image
+                )
+
+        with col4:
+            opacity = st.slider("image opacity", min_value=0.0, max_value=1.0, value=1.0, step=0.1)
+            max_stac_items = app_config_data.default_stac_items
+            if app_config_data.enable_stac_items_control:
+                max_stac_items = ste.number_input(
+                    "Max images on mosaic",
+                    min_value=1,
+                    max_value=app_config_data.max_stac_items,
+                    value=app_config_data.default_stac_items
+                )
             compute_min_max = True
 
             if satellite_sensor_params.get("collection_name")!="cop-dem-glo-30":
@@ -307,7 +337,8 @@ def create_options_menu(satellite_sensor_params):
                 st.query_params["compute-min-max"] = True
                 compute_min_max = True
 
-        buffer_width = float(app_config_data.buffer_width)/(enhance_passes+1)
+
+        buffer_width = float(buffer_width_config)/(enhance_passes+1)
 
         col1, col2 = st.columns(2)
         with col1:
@@ -379,7 +410,7 @@ def create_options_menu(satellite_sensor_params):
                         contour_gap = app_config_data.default_contour_equidistance
                     contour_gap = int(contour_gap)
 
-                opacity = st.slider("image opacity", min_value=0.0, max_value=1.0, value=1.0, step=0.1)
+
             image_range = (image_range_min, image_range_max)
             view_param = {view_mode: satellite_sensor_params[view_mode][selected_bands]}
 
@@ -406,7 +437,9 @@ def create_options_menu(satellite_sensor_params):
                 "compute_min_max": compute_min_max,
                 "create_contour": create_contour,
                 "contour_gap": contour_gap,
-                "opacity": opacity
+                "opacity": opacity,
+                "max_stac_items": max_stac_items,
+                "max_size_pixels": max_size_pixels
             }
 
         col1, col2 = st.columns(2)
@@ -465,7 +498,9 @@ def create_options_menu(satellite_sensor_params):
             "compute_min_max": compute_min_max,
             "create_contour": create_contour,
             "contour_gap": contour_gap,
-            "opacity": opacity
+            "opacity": opacity,
+            "max_stac_items": max_stac_items,
+            "max_size_pixels": max_size_pixels
         }
 
 def create_gif_menu(
@@ -528,6 +563,57 @@ def create_powered_by_menu():
 
     st.write("This application does not collect data but use carefully ;)")
 
+def georreference_image_menu(image_bounds):
+    colgeo_left, colgeo_center, colgeo_right = st.columns(3)
+    with colgeo_left:
+        empty = st.write("\t")
+        delta_x_left = st.number_input(
+            "< West",
+            step=0.0005,
+            min_value=-1.0,
+            max_value=1.0,
+            value=float(st.query_params.get("deltaxl",0.0)),
+            key="deltaxl",
+            format="%f")
+    with colgeo_center:
+        delta_y_up = st.number_input(
+            "^ North",
+            step=0.0005,
+            min_value=-1.0,
+            max_value=1.0,
+            value=float(st.query_params.get("deltayu",0.0)),
+            key="deltayu",
+            format="%f")
+        delta_y_down = st.number_input(
+            "v South",
+            step=0.0005,
+            min_value=-1.0,
+            max_value=1.0,
+            value=float(st.query_params.get("deltayd",0.0)),
+            key="deltayd",
+            format="%f")
+    with colgeo_right:
+        empty = st.write("\t")
+        delta_x_right = st.number_input(
+            "East >",
+            step=0.0005,
+            min_value=-1.0,
+            max_value=1.0,
+            value=float(st.query_params.get("deltaxr",0.0)),
+            key="deltaxr",
+            format="%f")
+
+    st.query_params["deltaxl"] = delta_x_left
+    st.query_params["deltaxr"] = delta_x_right
+    st.query_params["deltayu"] = delta_y_up
+    st.query_params["deltayd"] = delta_y_down
+
+    image_bounds = [
+        [image_bounds[0][0]+delta_y_down, image_bounds[0][1]+delta_x_left],
+        [image_bounds[1][0]+delta_y_up, image_bounds[1][1]+delta_x_right],
+    ]
+    return image_bounds
+
 @st.cache_data
 def get_web_map():
     web_map = WebMap()
@@ -542,14 +628,12 @@ def get_web_map():
 def main():
     startup_session_variables()
     web_map = get_web_map()
-    st.title("Satellite Image Viewer")
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.write("Search where to go below or drop a pin on map to get fresh images")
-    with col3:
-        st.write("[Code on GitHub](https://github.com/rupestre-campos/satellite-image-viewer)")
 
-    col1, col2, col3 = st.columns(3)
+    st.title("Satellite Image Viewer")
+    st.write("[Code on GitHub](https://github.com/rupestre-campos/satellite-image-viewer)")
+    st.write("Search where to go below or drop a pin on map to get fresh images")
+
+    col1, col2 = st.columns(2)
     with col1:
         satellite_sensor = ste.radio(
             "Satellite",
@@ -562,7 +646,6 @@ def main():
             "Searh type",
             options=["address", "coordinates"],
             key="search-type")
-    with col3:
         if search_place_type == "address":
             st.write("Enter address location below to search")
         if search_place_type == "coordinates":
@@ -581,6 +664,8 @@ def main():
     create_contour = options_menu_values["create_contour"]
     contour_gap = options_menu_values["contour_gap"]
     opacity = options_menu_values["opacity"]
+    max_stac_items = options_menu_values["max_stac_items"]
+    max_size_pixels = options_menu_values["max_size_pixels"]
     start_date = datetime.strptime(
         satellite_sensor_params.get("start_date"),
         "%Y-%m-%d"
@@ -625,7 +710,6 @@ def main():
                     "search-type": "coordinates"
                 }
             )
-
 
     with col2:
         max_cloud_percent = 100
@@ -703,7 +787,7 @@ def main():
         st.rerun()
 
     stac_items = catalog_search(
-        app_config_data.max_stac_items,
+        max_stac_items,
         st.session_state["geometry"],
         buffer_width,
         date_string,
@@ -729,8 +813,9 @@ def main():
             enhance_passes,
             compute_min_max,
             create_contour,
-            contour_gap
-            )
+            contour_gap,
+            max_size_pixels
+        )
         st.write(f'Image ID: {image_data["name"][:1024]}')
         with col1:
             create_download_zip_button(image_data["zip_file"], image_data["name"])
@@ -739,61 +824,14 @@ def main():
 
         with col2:
             if georreference_image:
-                colgeo_left, colgeo_center, colgeo_right = st.columns(3)
-                with colgeo_left:
-                    empty = st.write("\t")
-                    delta_x_left = st.number_input(
-                        "< West",
-                        step=0.0005,
-                        min_value=-1.0,
-                        max_value=1.0,
-                        value=float(st.query_params.get("deltaxl",0.0)),
-                        key="deltaxl",
-                        format="%f")
-                with colgeo_center:
-                    delta_y_up = st.number_input(
-                        "^ North",
-                        step=0.0005,
-                        min_value=-1.0,
-                        max_value=1.0,
-                        value=float(st.query_params.get("deltayu",0.0)),
-                        key="deltayu",
-                        format="%f")
-                    delta_y_down = st.number_input(
-                        "v South",
-                        step=0.0005,
-                        min_value=-1.0,
-                        max_value=1.0,
-                        value=float(st.query_params.get("deltayd",0.0)),
-                        key="deltayd",
-                        format="%f")
-                with colgeo_right:
-                    empty = st.write("\t")
-                    delta_x_right = st.number_input(
-                        "East >",
-                        step=0.0005,
-                        min_value=-1.0,
-                        max_value=1.0,
-                        value=float(st.query_params.get("deltaxr",0.0)),
-                        key="deltaxr",
-                        format="%f")
-
-                st.query_params["deltaxl"] = delta_x_left
-                st.query_params["deltaxr"] = delta_x_right
-                st.query_params["deltayu"] = delta_y_up
-                st.query_params["deltayd"] = delta_y_down
-
-                image_bounds = [
-                    [image_bounds[0][0]+delta_y_down, image_bounds[0][1]+delta_x_left],
-                    [image_bounds[1][0]+delta_y_up, image_bounds[1][1]+delta_x_right],
-                ]
+                image_bounds = georreference_image_menu(image_bounds)
 
         web_map.add_image(
             image_data["image"],
             image_bounds,
             satellite_sensor_params["name"],
             opacity
-            )
+        )
         feature_geojson = {
             "type": "Feature",
             "properties": {},
