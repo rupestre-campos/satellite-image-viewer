@@ -137,6 +137,7 @@ class AppConfig:
             },
             "expression": {
                 "ndvi": f"({nir}-{red})/({nir}+{red})",
+                "ndyi": f"({green}-{blue})/({green}+{blue})",
                 "ndwi": f"({red}-{nir})/({red}+{nir})",
                 "evi": f"2.5*(({nir}-{red})/(({nir}-6*{red}-7.5*{blue})+1))",
                 "savi": f"(({nir}-{red})/({nir}+{red}+0.5))*1.5",
@@ -231,6 +232,7 @@ class AppConfig:
             },
             "expression": {
                 "ndvi": f"({nir}-{red})/({nir}+{red})",
+                "ndyi": f"({green}-{blue})/({green}+{blue})",
                 "ndwi": f"({red}-{nir})/({red}+{nir})",
                 "evi": f"2.5*(({nir}-{red})/(({nir}-6*{red}-7.5*{blue})+1))",
                 "savi": f"(({nir}-{red})/({nir}+{red}+0.5))*1.5",
