@@ -378,7 +378,7 @@ def create_options_menu(satellite_sensor_params):
 
             with col3:
                 if not compute_min_max:
-                    image_range_min = ste.number_input(
+                    image_range_min = st.number_input(
                         "Image min value",
                         value=float(st.query_params.get("img-min", min_max_range["default"][0])),
                         min_value=float(min_max_range["range"][0]),
@@ -389,7 +389,7 @@ def create_options_menu(satellite_sensor_params):
 
             with col4:
                 if not compute_min_max:
-                    image_range_max = ste.number_input(
+                    image_range_max = st.number_input(
                         "Image max value",
                         value=float(st.query_params.get("img-max", min_max_range["default"][1])),
                         min_value=float(min_max_range["range"][0]),
