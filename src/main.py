@@ -243,12 +243,12 @@ def get_min_max_image_range(view_mode, satellite_sensor_params):
             "step":0.05
         }
     return {
-        "range": (0, 63535),
+        "range": (0.0, 63535.0),
         "default": (
             satellite_sensor_params["min_value"],
             satellite_sensor_params["max_value"]
         ),
-        "step":1
+        "step":1.0
     }
 
 def get_default_view_options_index(view_mode, options):
@@ -378,21 +378,23 @@ def create_options_menu(satellite_sensor_params):
 
             with col3:
                 if not compute_min_max:
-                    image_range_min = st.number_input(
+                    image_range_min = ste.number_input(
                         "Image min value",
-                        value=min_max_range["default"][0],
-                        min_value=min_max_range["range"][0],
-                        max_value=min_max_range["range"][1],
+                        value=float(st.query_params.get("img-min", min_max_range["default"][0])),
+                        min_value=float(min_max_range["range"][0]),
+                        max_value=float(min_max_range["range"][1]),
+                        step=float(0.1),
                         key="img-min"
                     )
 
             with col4:
                 if not compute_min_max:
-                    image_range_max = st.number_input(
+                    image_range_max = ste.number_input(
                         "Image max value",
-                        value=min_max_range["default"][1],
-                        min_value=min_max_range["range"][0],
-                        max_value=min_max_range["range"][1],
+                        value=float(st.query_params.get("img-max", min_max_range["default"][1])),
+                        min_value=float(min_max_range["range"][0]),
+                        max_value=float(min_max_range["range"][1]),
+                        step=float(0.1),
                         key="img-max"
                     )
                 create_contour = False
