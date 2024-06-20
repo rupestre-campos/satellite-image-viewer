@@ -48,16 +48,16 @@ class WebMap:
             overlay=False
         ).add_to(self.web_map)
 
-    def add_draw_support(self, export=False):
+    def add_draw_support(self, polygon=True, retangle=True, marker=True, export=False):
         Draw(
             export=export,
             position="topleft",
             draw_options={
                 "polyline": False,
-                "polygon": False,
-                "rectangle": False,
+                "polygon": polygon,
+                "rectangle": retangle,
                 "circle": False,
-                "marker": True,
+                "marker": marker,
                 "circlemarker": False
             },
             edit_options={

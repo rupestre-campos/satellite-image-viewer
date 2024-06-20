@@ -300,21 +300,31 @@ def create_options_menu(satellite_sensor_params):
         with col3:
             buffer_width_config = float(app_config_data.buffer_width)
             if app_config_data.enable_buffer_control:
-                buffer_width_config = st.number_input(
+                buffer_width_config = ste.number_input(
                     "Buffer width (m)",
                     min_value=10,
                     max_value=app_config_data.buffer_max_width,
-                    value=app_config_data.buffer_width
+                    value=app_config_data.buffer_width,
+                    key="buffer-width"
                 )
 
             max_size_pixels = None
             if app_config_data.enable_max_pixels:
                 max_size_pixels = ste.number_input(
-                    "how many pixels",
-                    min_value=10,
+                    "Pixel count limit (use 0 for full resolution)",
+                    min_value=0,
                     max_value=app_config_data.max_pixels_image,
-                    value=app_config_data.default_pixels_image
+                    value=app_config_data.default_pixels_image,
+                    key="max-pixels"
                 )
+                if int(max_size_pixels) == 0:
+                    max_size_pixels = None
+                sensor_pixel_size = satellite_sensor_params.get("pixel_size", 10)
+                estimated_pixels = ((buffer_width_config * 2) / sensor_pixel_size)**2
+                if estimated_pixels > app_config_data.max_pixels_image:
+                    max_size_pixels = app_config_data.max_pixels_image
+                    st.write(f"too many pixels: will use {max_size_pixels}")
+                    st.query_params["max-pixels"] = max_size_pixels
 
         with col4:
             opacity = st.slider("image opacity", min_value=0.0, max_value=1.0, value=1.0, step=0.1)
@@ -324,7 +334,8 @@ def create_options_menu(satellite_sensor_params):
                     "Max images on mosaic",
                     min_value=1,
                     max_value=app_config_data.max_stac_items,
-                    value=app_config_data.default_stac_items
+                    value=app_config_data.default_stac_items,
+                    key="max-stac-items"
                 )
             compute_min_max = True
 
@@ -338,7 +349,8 @@ def create_options_menu(satellite_sensor_params):
                 compute_min_max = True
 
 
-        buffer_width = float(buffer_width_config)/(enhance_passes+1)
+        #buffer_width = float(buffer_width_config)/(enhance_passes+1)
+        buffer_width = buffer_width_config
 
         col1, col2 = st.columns(2)
         with col1:
@@ -620,7 +632,11 @@ def georreference_image_menu(image_bounds):
 def get_web_map():
     web_map = WebMap()
     web_map.add_fullscreen()
-    web_map.add_draw_support()
+    web_map.add_draw_support(
+        polygon=app_config_data.enable_draw_polygon,
+        retangle=app_config_data.enable_draw_retangle,
+        marker=app_config_data.enable_draw_marker
+    )
     web_map.add_mouse_location()
     web_map.add_base_map(app_config_data.google_basemap, "google satellite", "google", show=True)
     web_map.add_base_map(app_config_data.open_street_maps, "open street maps", "open street maps")
@@ -633,7 +649,6 @@ def main():
 
     st.title("Satellite Image Viewer")
     st.write("[Code on GitHub](https://github.com/rupestre-campos/satellite-image-viewer)")
-    st.write("Search where to go below or drop a pin on map to get fresh images")
 
     col1, col2 = st.columns(2)
     with col1:
@@ -643,15 +658,6 @@ def main():
             index=app_config_data.default_satellite_choice_index,
             key="satellite"
         )
-    with col2:
-        search_place_type = ste.radio(
-            "Searh type",
-            options=["address", "coordinates"],
-            key="search-type")
-        if search_place_type == "address":
-            st.write("Enter address location below to search")
-        if search_place_type == "coordinates":
-            st.write("Drop a pin on map to search")
 
     satellite_sensor_params = app_config_data.satelites.get(satellite_sensor)
     options_menu_values = create_options_menu(satellite_sensor_params)
@@ -676,6 +682,19 @@ def main():
         satellite_sensor_params.get("end_date"),
         "%Y-%m-%d"
     )
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        search_place_type = ste.radio(
+            "Searh type",
+            options=["address", "coordinates"],
+            key="search-type")
+        if search_place_type == "address":
+            pass
+            #st.write("Enter address location")
+        if search_place_type == "coordinates":
+            st.write("Draw or Drop a pin on map")
 
     col1, col2 = st.columns(2)
     with col1:
@@ -715,15 +734,18 @@ def main():
 
     with col2:
         max_cloud_percent = 100
-        if satellite_sensor.lower() not in ("sentinel 1", "copernicus dem"):
-            max_cloud_percent = ste.number_input(
-                "Maximum cloud cover (%)",
-                min_value=0.0,
-                max_value=100.0,
-                value=app_config_data.default_cloud_cover,
-                step=app_config_data.cloud_cover_step,
-                key="cloud-perc"
-            )
+        disabled = False
+        if satellite_sensor.lower() in ("sentinel 1", "copernicus dem"):
+            disabled = True
+        max_cloud_percent = st.number_input(
+            "Maximum cloud cover (%)",
+            min_value=0.0,
+            max_value=100.0,
+            value=app_config_data.default_cloud_cover,
+            step=app_config_data.cloud_cover_step,
+            key="cloud-perc",
+            disabled=disabled
+        )
 
     col1, col2 = st.columns(2)
     with col1:
@@ -859,17 +881,19 @@ def main():
     create_powered_by_menu()
     if user_draw["geometry"] != None \
         and st.session_state["user_draw"] != user_draw["geometry"]:
-        st.session_state["user_draw"] = user_draw["geometry"]
-        longitude = user_draw["geometry"]["coordinates"][0]
-        latitude = user_draw["geometry"]["coordinates"][1]
-        st.session_state["geometry"] = (
-            round(latitude, app_config_data.float_precision),
-            round(longitude, app_config_data.float_precision)
-        )
 
-        st.session_state["result_gif_image"] = {}
-        st.query_params.update({"lat": latitude, "lon":longitude, "search-type":"coordinates"})
-        st.rerun()
+        if user_draw.get("geometry", {}).get("type") == "Point":
+            longitude = user_draw["geometry"]["coordinates"][0]
+            latitude = user_draw["geometry"]["coordinates"][1]
+            st.session_state["user_draw"] = user_draw["geometry"]
+            st.session_state["geometry"] = (
+                round(latitude, app_config_data.float_precision),
+                round(longitude, app_config_data.float_precision)
+            )
+
+            st.session_state["result_gif_image"] = {}
+            st.query_params.update({"lat": latitude, "lon":longitude, "search-type":"coordinates"})
+            st.rerun()
 
     return True
 

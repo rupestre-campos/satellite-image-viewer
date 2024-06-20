@@ -48,8 +48,11 @@ class AppConfig:
         self.contour_equidistances = [int(value) for value in os.getenv("CONTOUR_EQUIDISTANCES", "5,10,15,25,50,100").split(",")]
         self.default_contour_equidistance = int(os.getenv("CONTOUR_EQUIDISTANCE", "5"))
         self.enable_max_pixels = os.getenv("ENABLE_MAX_PIXEL_CONTROL", "False").lower() in ('true', '1', 't')
-        self.max_pixels_image = int(os.getenv("MAX_PIXELS_IMAGE", "8196"))
-        self.default_pixels_image = int(os.getenv("DEFAULT_PIXELS_IMAGE", "1024"))
+        self.max_pixels_image = int(os.getenv("MAX_PIXELS_IMAGE", "2048"))
+        self.default_pixels_image = int(os.getenv("DEFAULT_PIXELS_IMAGE", "0"))
+        self.enable_draw_polygon = os.getenv("ENABLE_DRAW_POLYGON", "False").lower() in ('true', '1', 't')
+        self.enable_draw_retangle = os.getenv("ENABLE_DRAW_RETANGLE", "False").lower() in ('true', '1', 't')
+        self.enable_draw_marker = os.getenv("ENABLE_DRAW_MARKER", "True").lower() in ('true', '1', 't')
 
     def __get_satellites_params(self):
         params = {}
@@ -65,6 +68,7 @@ class AppConfig:
 
     @staticmethod
     def __get_sensor_sentinel_params():
+        pixel_size = 10
         collection_name = os.getenv("SENTINEL_COLLECTION_NAME", "sentinel-2-l2a")
         collection_start_date = os.getenv("SENTINEL_COLLECTION_START_DATE", "2015-06-23")
         collection_end_date = os.getenv("SENTINEL_COLLECTION_END_DATE", datetime.now().strftime("%Y-%m-%d"))
@@ -95,6 +99,7 @@ class AppConfig:
 
         return {
             "name": "Sentinel 2",
+            "pixel_size": pixel_size,
             "collection_name": collection_name,
             "start_date": collection_start_date,
             "end_date": collection_end_date,
@@ -163,6 +168,7 @@ class AppConfig:
     @staticmethod
     def __get_sensor_landsat_params():
         collection_name = os.getenv("LANDSAT_COLLECTION_NAME", "landsat-c2-l2")
+        pixel_size = 30
         collection_start_date = os.getenv("LANDSAT_COLLECTION_START_DATE", "1982-07-16")
         collection_end_date = os.getenv("LANDSAT_COLLECTION_END_DATE", datetime.now().strftime("%Y-%m-%d"))
         image_max_size = os.getenv("LANDSAT_IMAGE_MAX_SIZE", None)
@@ -190,6 +196,7 @@ class AppConfig:
 
         return {
             "name": "Landsat",
+            "pixel_size":pixel_size,
             "collection_name": collection_name,
             "start_date": collection_start_date,
             "end_date": collection_end_date,
@@ -258,6 +265,7 @@ class AppConfig:
     @staticmethod
     def __get_sensor_sentinel1_params():
         collection_name = os.getenv("SENTINEL1_COLLECTION_NAME", "sentinel-1-grd")
+        pixel_size = 10
         collection_start_date = os.getenv("SENTINEL1_COLLECTION_START_DATE", "2014-10-10")
         collection_end_date = os.getenv("SENTINEL1_COLLECTION_END_DATE", datetime.now().strftime("%Y-%m-%d"))
         image_max_size = os.getenv("SENTINEL1_IMAGE_MAX_SIZE", None)
@@ -283,6 +291,7 @@ class AppConfig:
 
         return {
             "name": "Sentinel 1",
+            "pixel_size": pixel_size,
             "collection_name": collection_name,
             "start_date": collection_start_date,
             "end_date": collection_end_date,
@@ -336,6 +345,7 @@ class AppConfig:
     @staticmethod
     def __get_copernicus_dem_params():
         collection_name = os.getenv("DEM_COLLECTION_NAME", "cop-dem-glo-30")
+        pixel_size = 30
         collection_start_date = os.getenv("DEM_COLLECTION_START_DATE", "2021-04-20")
         collection_end_date = os.getenv("DEM_COLLECTION_END_DATE", datetime.now().strftime("%Y-%m-%d"))
         image_max_size = os.getenv("DEM_IMAGE_MAX_SIZE", None)
@@ -358,6 +368,7 @@ class AppConfig:
 
         return {
             "name": "Copernicus DEM",
+            "pixel_size": pixel_size,
             "collection_name": collection_name,
             "start_date": collection_start_date,
             "end_date": collection_end_date,
