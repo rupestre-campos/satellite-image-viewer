@@ -279,11 +279,13 @@ def create_options_menu(satellite_sensor_params):
     with st.expander("options"):
         col1, col2, col3, col4 = st.columns(4)
         with col1:
-            enhance_image = ste.checkbox(
-                "enhance image resolution",
-                value=app_config_data.enhance_image_default,
-                key="enhance"
-            )
+            enhance_image = False
+            if app_config_data.enable_enhance_image:
+                enhance_image = ste.checkbox(
+                    "enhance image resolution",
+                    value=app_config_data.enhance_image_default,
+                    key="enhance"
+                )
         with col2:
             enhance_passes = 0
             if enhance_image:
