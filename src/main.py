@@ -34,8 +34,8 @@ def get_address_searcher():
 )
 
 @st.cache_resource
-def get_image_renderer():
-    return ImageRenderer()
+def get_image_renderer(rdn_block_size):
+    return ImageRenderer(rdn_block_size=rdn_block_size)
 
 @st.cache_resource
 def get_animation_creator(_worker_catalog_searcher, _worker_image_renderer):
@@ -47,7 +47,7 @@ def get_animation_creator(_worker_catalog_searcher, _worker_image_renderer):
 worker_catalog_searcher = get_catalog_searcher()
 worker_point_bufferer = get_point_bufferer()
 worker_address_searcher = get_address_searcher()
-worker_image_renderer = get_image_renderer()
+worker_image_renderer = get_image_renderer(app_config_data.rdn_block_size)
 worker_animation_creator = get_animation_creator(worker_catalog_searcher, worker_image_renderer)
 
 colormaps = sorted(worker_image_renderer.colormaps)
@@ -286,6 +286,15 @@ def create_options_menu(satellite_sensor_params):
                     value=app_config_data.enhance_image_default,
                     key="enhance"
                 )
+                if enhance_image:
+                    st.write(f"Buffer set to max {app_config_data.enhance_image_buffer_size}m")
+            anti_aliasing = ste.checkbox(
+                "anti-aliasing",
+                value=app_config_data.default_anti_aliasing,
+                key="anti-aliasing"
+            )
+
+            pixelate_image = not anti_aliasing
         with col2:
             enhance_passes = 0
             if enhance_image:
@@ -310,23 +319,15 @@ def create_options_menu(satellite_sensor_params):
                     key="buffer-width"
                 )
 
-            max_size_pixels = None
-            if app_config_data.enable_max_pixels:
-                max_size_pixels = ste.number_input(
-                    "Pixel count limit (use 0 for full resolution)",
-                    min_value=0,
-                    max_value=app_config_data.max_pixels_image,
-                    value=app_config_data.default_pixels_image,
-                    key="max-pixels"
-                )
-                if int(max_size_pixels) == 0:
-                    max_size_pixels = None
-                sensor_pixel_size = satellite_sensor_params.get("pixel_size", 10)
-                estimated_pixels = ((buffer_width_config * 2) / sensor_pixel_size)**2
-                if estimated_pixels > app_config_data.max_pixels_image:
-                    max_size_pixels = app_config_data.max_pixels_image
-                    st.write(f"too many pixels: will use {max_size_pixels}")
-                    st.query_params["max-pixels"] = max_size_pixels
+            max_size_pixels = app_config_data.max_pixels_image
+            if int(max_size_pixels) == 0:
+                max_size_pixels = None
+            if enhance_image:
+                max_size_pixels = None
+                if buffer_width_config > app_config_data.enhance_image_buffer_size:
+                    buffer_width_config = app_config_data.enhance_image_buffer_size
+                    st.query_params["buffer-width"] = buffer_width_config
+
 
         with col4:
             opacity = st.slider("image opacity", min_value=0.0, max_value=1.0, value=1.0, step=0.1)
@@ -433,11 +434,15 @@ def create_options_menu(satellite_sensor_params):
         if view_mode == "expression":
             col1, col2, col3, col4 = st.columns(4)
             with col2:
-                colormap = ste.selectbox(
+                colormap_disable = False
+                if satellite_sensor_params.get("collection_name")=="cop-dem-glo-30" :
+                    colormap_disable = True
+                colormap = st.selectbox(
                     "Image colormap",
                     options=colormaps,
                     index=colormaps.index("viridis"),
-                    key="colormap"
+                    key="colormap",
+                    disabled=colormap_disable
                 )
                 if not colormap:
                     colormap = colormaps[colormaps.index("viridis")]
@@ -455,7 +460,8 @@ def create_options_menu(satellite_sensor_params):
                 "contour_gap": contour_gap,
                 "opacity": opacity,
                 "max_stac_items": max_stac_items,
-                "max_size_pixels": max_size_pixels
+                "max_size_pixels": max_size_pixels,
+                "pixelate_image": pixelate_image
             }
 
         col1, col2 = st.columns(2)
@@ -516,7 +522,8 @@ def create_options_menu(satellite_sensor_params):
             "contour_gap": contour_gap,
             "opacity": opacity,
             "max_stac_items": max_stac_items,
-            "max_size_pixels": max_size_pixels
+            "max_size_pixels": max_size_pixels,
+            "pixelate_image": pixelate_image
         }
 
 def create_gif_menu(
@@ -630,7 +637,6 @@ def georreference_image_menu(image_bounds):
     ]
     return image_bounds
 
-@st.cache_data
 def get_web_map():
     web_map = WebMap()
     web_map.add_fullscreen()
@@ -676,6 +682,8 @@ def main():
     opacity = options_menu_values["opacity"]
     max_stac_items = options_menu_values["max_stac_items"]
     max_size_pixels = options_menu_values["max_size_pixels"]
+    pixelate_image = options_menu_values["pixelate_image"
+                                         ]
     start_date = datetime.strptime(
         satellite_sensor_params.get("start_date"),
         "%Y-%m-%d"
@@ -879,7 +887,7 @@ def main():
 
     web_map.add_layer_control()
     web_map.add_location_control()
-    user_draw = web_map.render_web_map(pixelated=True)
+    user_draw = web_map.render_web_map(pixelated=pixelate_image)
     create_powered_by_menu()
     if user_draw["geometry"] != None \
         and st.session_state["user_draw"] != user_draw["geometry"]:

@@ -4,28 +4,26 @@ import json
 from PIL import Image
 import numpy as np
 from rasterio import warp
-from rasterio.transform import Affine
 from rio_tiler.io import STACReader
 from rio_tiler.models import ImageData
 from rio_tiler.mosaic import mosaic_reader
 from rio_tiler.colormap import cmap
-from shapely.affinity import affine_transform
-from shapely.geometry import LineString, MultiLineString, Point, mapping, shape
 import numexpr as ne
 from ISR.models import RDN
-from skimage.measure import find_contours
-from scipy.ndimage import gaussian_filter1d
-from scipy.ndimage import maximum_filter
-
+from osgeo import gdal, osr
+import subprocess
+import os
+import tempfile
 
 rdn = RDN(weights='psnr-small')
 
 class ReadSTAC:
-    def __init__(self):
+    def __init__(self, rdn_block_size=256):
         self.default_crs = "EPSG:4326"
         self.formats = {"PNG":"PGW", "JPEG":"JGW"}
         self.colormaps = cmap.list()
         self.float_precision = 5
+        self.rdn_block_size = rdn_block_size
 
     @staticmethod
     def __tiler(item, *args, **kwargs):
@@ -39,16 +37,14 @@ class ReadSTAC:
         return np.asarray(image)
 
     @staticmethod
-    def __array_to_png_string(image_array, image_format):
-        # Convert the array to an image
+    def __array_to_img_bytes(image_array, image_format):
         image = Image.fromarray(image_array)
 
-        # Save the image to a bytes buffer
         with io.BytesIO() as buffer:
             image.save(buffer, format=image_format)
-            png_string = buffer.getvalue()
+            img_bytes = buffer.getvalue()
 
-        return png_string
+        return img_bytes
 
     @staticmethod
     def __get_view_params(params):
@@ -82,12 +78,12 @@ class ReadSTAC:
     def __enhance_image(self, image, params):
         image = self.__image_as_array(image)
         alpha_channel = image[:, :, 3]
-        image = rdn.predict(image[:,:,:3], by_patch_of_size=50)
+        image = rdn.predict(image[:,:,:3], by_patch_of_size=self.rdn_block_size)
 
         alpha_channel_resized = self.__resize_alpha(alpha_channel, image)
 
         image = np.dstack((image, alpha_channel_resized))
-        return self.__array_to_png_string(image, params.get("image_format", "PNG"))
+        return self.__array_to_img_bytes(image, params.get("image_format", "PNG"))
 
     def __get_image_bounds(self, image):
         left, bottom, right, top = [round(i, self.float_precision) for i in image.bounds]
@@ -163,90 +159,120 @@ class ReadSTAC:
             colormap=colormap
         )
 
-    def __get_transform(self, transformed_bounds, width, height):
-        min_y, min_x = transformed_bounds[0]
-        max_y, max_x = transformed_bounds[1]
+    @staticmethod
+    def __colorize_hillshade(hillshade, mask, colormap="gray"):
+        hillshade = hillshade.astype(np.uint8)
 
-        pixel_size_x = round((max_x - min_x) / width, self.float_precision)
-        pixel_size_y = round((max_y - min_y) / height, self.float_precision)
+        color_map = cmap.get(colormap)
+        colorized_hillshade = np.zeros((hillshade.shape[0], hillshade.shape[1], 4), dtype=np.uint8)
 
-        transform = Affine(pixel_size_x, 0.0, min_x,
-                           0.0, -pixel_size_y, max_y)
-        return transform
+        for value, color in color_map.items():
+            mask_value = hillshade == value
+            colorized_hillshade[mask_value, :3] = color[:3]
+
+        colorized_hillshade[:, :, 3] = mask
+        return colorized_hillshade
 
     @staticmethod
-    def __create_discrete_image(image, value_gap):
-        discrete_image = (np.floor((image + value_gap + 1) / value_gap) * value_gap) - value_gap
-        return discrete_image
+    def __create_hillshade(arr, azimuth=30, altitude=30, exaggeration=100):
+        # azimuth <= 360 and altitude <90 to this to work
+        x, y = np.gradient(arr)
+
+        azimuth = 360.0 - azimuth
+        azimuthrad = azimuth * np.pi / 180.0
+        altituderad = altitude * np.pi / 180.0
+
+        slope = np.pi / 2.0 - np.arctan(np.sqrt(x * x + y * y))
+        aspect = np.arctan2(-x, y)
+
+        shaded = np.sin(altituderad) * np.sin(slope) + np.cos(
+            altituderad
+        ) * np.cos(slope) * np.cos((azimuthrad - np.pi / 2.0) - aspect)
+
+        return 255 * (shaded + 1) / 2
 
     @staticmethod
-    def __contours_from_image(image, contour_value, transform, min_vertices, sigma):
-        features = []
-        for contour in find_contours(image, contour_value):
-            if contour.shape[0] < min_vertices:
-                continue
-            smoothed_coords = np.column_stack((
-                gaussian_filter1d(contour[:, 0], sigma=sigma),
-                gaussian_filter1d(contour[:, 1], sigma=sigma)
-            ))
-            if np.allclose(contour[0],contour[-1]):
-                smoothed_coords = np.vstack((smoothed_coords, smoothed_coords[0]))
-            features.append(LineString(smoothed_coords[:,[1,0]]))
-        return affine_transform(MultiLineString(features), transform.to_shapely())
+    def __get_contours(image_data, interval=10):
+        image_array = image_data.data.squeeze()
+        if image_data.mask is not None:
+            image_array[image_data.mask == 0] = -12000  # Set nodata value to -12000
 
-    def __get_contours(
-            self,
-            feature_geojson,
-            image_data,
-            gap,
-            transform,
-            min_vertices,
-            sigma,
-            limit_points,
-            neighborhood_size
-        ):
-        quantized_image = self.__create_discrete_image(image_data.data, gap)
-        feature_geometry = shape(feature_geojson['geometry'])
-        features = []
-        for pixel_value in np.unique(quantized_image):
-            geom = self.__contours_from_image(
-                quantized_image[0], pixel_value, transform, min_vertices, sigma)
-            intersection = geom.intersection(feature_geometry)
-            if not intersection:
-                continue
-            feature = {
-                "type": "Feature",
-                "geometry": mapping(intersection),
-                "properties": {"pixel_value": round(float(pixel_value),self.float_precision) }
-            }
-            features.append(feature)
+        temp_input_tif = tempfile.NamedTemporaryFile(suffix=".tif").name
+        driver = gdal.GetDriverByName("GTiff")
+        output_dataset = driver.Create(temp_input_tif, image_array.shape[1], image_array.shape[0], 1, gdal.GDT_Float32)
+        output_dataset.GetRasterBand(1).WriteArray(image_array)
+        output_dataset.GetRasterBand(1).SetNoDataValue(-32000)
 
-        neighborhood_size = (neighborhood_size, neighborhood_size)
-        local_max = maximum_filter(image_data.data[0], footprint=np.ones(neighborhood_size))
-        local_max_points = np.argwhere(image_data.data[0] == local_max)
-        features_point = []
-        for point in local_max_points:
-            pixel_value = image_data.data[0, point[0], point[1]]
-            geom = affine_transform(Point(point[1], point[0]), transform.to_shapely())
-            intersection = geom.intersection(feature_geometry)
-            if not intersection:
-                continue
-            point_feature = {
-                "type": "Feature",
-                "geometry":  mapping(intersection),
-                "properties": {"pixel_value": round(float(pixel_value),self.float_precision)}
-            }
-            features_point.append(point_feature)
+        srs = osr.SpatialReference()
+        srs.ImportFromEPSG(4326)  # Set the desired EPSG code
+        output_dataset.SetProjection(srs.ExportToWkt())
 
-        features_point = sorted(
-            features_point, key=lambda x: x.get("properties",{}).get("pixel_value"), reverse=True)
-        features_point = features_point[:limit_points]
-        features += features_point
-        feat_collection = {
-            "type": "FeatureCollection",
-            "features": features
-        }
-        return feat_collection
+        if image_data.bounds:
+            geotransform = [
+                image_data.bounds[0],  # xmin
+                (image_data.bounds[2] - image_data.bounds[0]) / image_array.shape[1],
+                0,
+                image_data.bounds[3],  # ymax
+                0,
+                -(image_data.bounds[3] - image_data.bounds[1]) / image_array.shape[0]
+            ]
+            output_dataset.SetGeoTransform(geotransform)
+
+        # Close and clean the temporary GeoTIFF file
+        output_dataset = None
+
+        # Create a temporary GeoJSON file
+        temp_output_geojson = tempfile.NamedTemporaryFile(suffix=".geojson").name
+
+        try:
+            # Run gdal_contour command
+            command = [
+                "gdal_contour",
+                "-a",
+                "pixel_value",  # Attribute name for contour lines
+                "-i",
+                str(interval),  # Contour interval
+                "-snodata",
+                "-12000",
+                "-f",
+                "GeoJSON",  # Output format
+                temp_input_tif,
+                temp_output_geojson,
+            ]
+            subprocess.run(command, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+            # Read the generated GeoJSON file
+            with open(temp_output_geojson, 'r') as f:
+                geojson_data = json.load(f)
+
+        except subprocess.CalledProcessError as e:
+            print(f"Error running gdal_contour: {e}")
+            stdout = e.stdout.decode('utf-8')
+            stderr = e.stderr.decode('utf-8')
+            print(f"gdal_contour stdout:\n{stdout}")
+            print(f"gdal_contour stderr:\n{stderr}")
+            raise  # Re-raise the exception for handling at higher level
+
+        finally:
+            # Clean up: Delete temporary files
+            if os.path.exists(temp_input_tif):
+                os.remove(temp_input_tif)
+            if os.path.exists(temp_output_geojson):
+                os.remove(temp_output_geojson)
+
+        return geojson_data
+
+    @staticmethod
+    def merge_altitude_and_hillshade(image_altitude_bytes, image_hillshade_bytes):
+        image1 = Image.open(io.BytesIO(image_altitude_bytes))
+        image2 = Image.open(io.BytesIO(image_hillshade_bytes))
+        composite = Image.blend(image1, image2, alpha=0.5)  # Adjust alpha as needed
+
+        buffer = io.BytesIO()
+        composite.save(buffer, format="PNG")
+        composite_bytes = buffer.getvalue()
+
+        return composite_bytes
 
     def render_mosaic_from_stac(self, params):
         if params.get("image_format") not in self.formats:
@@ -263,7 +289,6 @@ class ReadSTAC:
         image_data, assets_used = mosaic_reader(
             params.get("stac_list"), self.__tiler, *args, **kwargs)
         image_bounds = self.__get_image_bounds(image_data)
-        transform = self.__get_transform(image_bounds, image_data.width, image_data.height)
 
         if params.get("RGB-expression"):
             image_data = self.__process_rgb_expression(image_data, params)
@@ -276,8 +301,20 @@ class ReadSTAC:
                 image_data.data[image_data.data!=params.get("nodata")].max(), self.float_precision)
             params.update({"min_value": min_value, "max_value": max_value})
 
-        image = self.__post_process_image(image_data, params)
-        image = self.__render_image(image, params)
+        if params.get("create_contour"):
+            image = self.__post_process_image(image_data, params)
+            params["colormap"] = "terrain"
+            image_altitude = self.__render_image(image, params)
+            image = self.__create_hillshade(image_data.data.squeeze())
+            image_hillshade = self.__array_to_img_bytes(
+                self.__colorize_hillshade(image, image_data.mask, "gray"),
+                params.get("image_format","PNG")
+            )
+            image = self.merge_altitude_and_hillshade(image_altitude, image_hillshade)
+
+        if not params.get("create_contour"):
+            image = self.__post_process_image(image_data, params)
+            image = self.__render_image(image, params)
 
         if params.get("enhance_image"):
             passes = params.get("enhance_passes", 1)
@@ -287,20 +324,10 @@ class ReadSTAC:
         world_file = self.__get_world_file_content(image_bounds, image)
         contours = {}
         if params.get("create_contour"):
-            min_vertices = params.get("min_vertices", 10)
-            sigma = params.get("sigma", 0.8)
             gap = params.get("gap", 10)
-            limit_points = params.get("limit_points", 10)
-            neighborhood_size = params.get("neighborhood_size", 25)
             contours = self.__get_contours(
-                feature_geojson,
                 image_data,
-                gap,
-                transform,
-                min_vertices,
-                sigma,
-                limit_points,
-                neighborhood_size
+                gap
             )
 
         if params.get("zip_file"):
