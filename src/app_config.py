@@ -46,14 +46,17 @@ class AppConfig:
         self.enable_enhance_image = os.getenv("ENABLE_ENHANCE_IMAGE", "False").lower() in ('true', '1', 't')
         self.enhance_image_default = os.getenv("DEFAULT_ENHANCE_IMAGE", "False").lower() in ('true', '1', 't')
         self.enhance_image_passes = os.getenv("ENHANCE_IMAGE_PASSES", "1,2")
-        self.contour_equidistances = [int(value) for value in os.getenv("CONTOUR_EQUIDISTANCES", "50,100").split(",")]
+        self.contour_equidistances = [int(value) for value in os.getenv("CONTOUR_EQUIDISTANCES", "5,25,50,100").split(",")]
         self.default_contour_equidistance = int(os.getenv("CONTOUR_EQUIDISTANCE", "50"))
         self.enable_max_pixels = os.getenv("ENABLE_MAX_PIXEL_CONTROL", "False").lower() in ('true', '1', 't')
-        self.max_pixels_image = int(os.getenv("MAX_PIXELS_IMAGE", "2048"))
+        self.max_pixels_image = int(os.getenv("MAX_PIXELS_IMAGE", "1024"))
         self.default_pixels_image = int(os.getenv("DEFAULT_PIXELS_IMAGE", "0"))
         self.enable_draw_polygon = os.getenv("ENABLE_DRAW_POLYGON", "False").lower() in ('true', '1', 't')
         self.enable_draw_retangle = os.getenv("ENABLE_DRAW_RETANGLE", "False").lower() in ('true', '1', 't')
         self.enable_draw_marker = os.getenv("ENABLE_DRAW_MARKER", "True").lower() in ('true', '1', 't')
+        self.rdn_block_size = int(os.getenv("RDN_BLOCK_SIZE", "256"))
+        self.enhance_image_buffer_size = int(os.getenv("ENHANCE_IMAGE_BUFFER_SIZE", "1000"))
+        self.default_anti_aliasing = os.getenv("DEFAULT_ANTI_ALIASING", "True").lower() in ('true', '1', 't')
 
     def __get_satellites_params(self):
         params = {}

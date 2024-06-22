@@ -3,13 +3,13 @@ from controller.environment_variable_manager import EnvContextManager
 from model.read_stac import ReadSTAC
 
 class ImageRenderer:
-    def __init__(self,):
-        self.stac_reader = self.__model_read_stac()
+    def __init__(self, rdn_block_size=256):
+        self.stac_reader = self.__model_read_stac(rdn_block_size)
         self.colormaps = self.stac_reader.colormaps
 
     @staticmethod
-    def __model_read_stac():
-        return ReadSTAC()
+    def __model_read_stac(rdn_block_size):
+        return ReadSTAC(rdn_block_size=rdn_block_size)
 
     def render_mosaic_from_stac(self, params):
         with EnvContextManager(

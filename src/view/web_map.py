@@ -102,7 +102,7 @@ class WebMap:
             style_function=lambda feature: {
                 "fillColor": None,
                 "fill":None,
-                "color": "orange",
+                "color": "black",
                 "weight": 2,
         },
         )
@@ -114,10 +114,15 @@ class WebMap:
         if str(int(pixel_value))[-1] == "0":
             return {
                 "color": "orange",
+                "opacity": 0.8,
+                "weight": 1.2
             }
         return {
                 "color": "darkorange",
-                "dashArray" : "3, 6"
+                "dashArray" : "3, 6",
+                "opacity": 0.6,
+                "weight": 0.9
+
             }
 
     def add_contour(self, geojson_contour):
@@ -131,21 +136,30 @@ class WebMap:
         )
         highlight_function = lambda x: {
             "color": "red",
+            "opacity": 0.8,
+            "weight": 2.3
         }
 
         contour = folium.GeoJson(
             geojson_contour,
-            name="contour",
-            show=True,
+            name="Contour",
+            show=False,
             marker=folium.Marker(
-                icon=folium.Icon(icon="plus", angle=45, color="orange", icon_color="black")),
+                icon=folium.Icon(
+                    icon="plus",
+                    angle=45,
+                    color="black",
+                    icon_color="orange",
+                    **{"iconSize":[0,0], "iconAnchor":[10,20], "popupAnchor":[0,0], "shadowSize":[0,0]})),
             style_function=lambda x: self.contour_style_function(x),
             tooltip=tooltip,
             popup=popup,
             popup_keep_highlighted=True,
             highlight_function=highlight_function
         )
+
         contour.add_to(self.web_map)
+
 
     def add_location_control(self):
         LocateControl(auto_start=False, position="topright").add_to(self.web_map)
