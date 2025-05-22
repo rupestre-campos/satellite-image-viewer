@@ -3,14 +3,16 @@ import zipfile
 import json
 from PIL import Image
 import numpy as np
+import rasterio
 from rasterio import warp
+from rasterio.transform import Affine
+from rasterio.crs import CRS
 from rio_tiler.io import STACReader
 from rio_tiler.models import ImageData
 from rio_tiler.mosaic import mosaic_reader
 from rio_tiler.colormap import cmap
 import numexpr as ne
 from ISR.models import RDN
-from osgeo import gdal, osr
 import subprocess
 import os
 import tempfile
@@ -194,32 +196,38 @@ class ReadSTAC:
     @staticmethod
     def __get_contours(image_data, interval=10):
         image_array = image_data.data.squeeze()
+
+        nodata_value = -12000
         if image_data.mask is not None:
-            image_array[image_data.mask == 0] = -12000  # Set nodata value to -12000
+            image_array[image_data.mask == 0] = nodata_value
 
-        temp_input_tif = tempfile.NamedTemporaryFile(suffix=".tif").name
-        driver = gdal.GetDriverByName("GTiff")
-        output_dataset = driver.Create(temp_input_tif, image_array.shape[1], image_array.shape[0], 1, gdal.GDT_Float32)
-        output_dataset.GetRasterBand(1).WriteArray(image_array)
-        output_dataset.GetRasterBand(1).SetNoDataValue(-32000)
+        height, width = image_array.shape
 
-        srs = osr.SpatialReference()
-        srs.ImportFromEPSG(4326)  # Set the desired EPSG code
-        output_dataset.SetProjection(srs.ExportToWkt())
-
+        # Compute transform from bounds if available
+        transform = None
         if image_data.bounds:
-            geotransform = [
-                image_data.bounds[0],  # xmin
-                (image_data.bounds[2] - image_data.bounds[0]) / image_array.shape[1],
-                0,
-                image_data.bounds[3],  # ymax
-                0,
-                -(image_data.bounds[3] - image_data.bounds[1]) / image_array.shape[0]
-            ]
-            output_dataset.SetGeoTransform(geotransform)
+            xmin, ymin, xmax, ymax = image_data.bounds
+            pixel_width = (xmax - xmin) / width
+            pixel_height = (ymax - ymin) / height
+            transform = Affine(pixel_width, 0, xmin,
+                            0, -pixel_height, ymax)
 
-        # Close and clean the temporary GeoTIFF file
-        output_dataset = None
+        # Output file path
+        temp_input_tif = tempfile.NamedTemporaryFile(suffix=".tif", delete=False).name
+
+        with rasterio.open(
+            temp_input_tif,
+            'w',
+            driver='GTiff',
+            height=height,
+            width=width,
+            count=1,
+            dtype=image_array.dtype,
+            crs=CRS.from_epsg(4326),
+            transform=transform,
+            nodata=nodata_value
+        ) as dst:
+            dst.write(image_array, 1)
 
         # Create a temporary GeoJSON file
         temp_output_geojson = tempfile.NamedTemporaryFile(suffix=".geojson").name

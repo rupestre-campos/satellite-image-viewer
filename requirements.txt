@@ -11,4 +11,3 @@ tensorflow==2.16.1
 git+https://github.com/rupestre-campos/image-super-resolution
 pyyaml==6.0.1
 scikit-image==0.23.2
-pygdal==3.2.2.*
