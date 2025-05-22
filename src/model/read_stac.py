@@ -13,7 +13,6 @@ from rio_tiler.mosaic import mosaic_reader
 from rio_tiler.colormap import cmap
 import numexpr as ne
 from ISR.models import RDN
-#from osgeo import gdal, osr
 import subprocess
 import os
 import tempfile
