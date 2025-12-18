@@ -1,2 +1,1 @@
 git
-gdal-bin
